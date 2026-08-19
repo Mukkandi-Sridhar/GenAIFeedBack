@@ -14,29 +14,29 @@ export function StudentCard({ student, onClick }: StudentCardProps) {
   return (
     <motion.button
       variants={stagger.item}
-      whileHover={isSubmitted ? {} : { scale: 1.04, boxShadow: '12px 18px 40px rgba(15,23,42,0.1)' }}
+      whileHover={isSubmitted ? {} : { scale: 1.03 }}
       whileTap={isSubmitted ? {} : { scale: 0.97 }}
       onClick={isSubmitted ? undefined : onClick}
       disabled={isSubmitted}
       aria-label={`Student ${student.reg_no} — ${isSubmitted ? 'already submitted' : 'click to submit feedback'}`}
       className={`
-        relative w-full text-left rounded-xl p-3.5 transition-all duration-200 group
+        relative w-full text-left rounded-xl p-3.5 transition-all duration-200 group glass-card
         ${isSubmitted
-          ? 'glass-card opacity-55 cursor-not-allowed border-slate-200'
-          : 'glass-card cursor-pointer pulse-ring border border-slate-200 hover:border-slate-400 bg-white/80'
+          ? 'opacity-50 cursor-not-allowed border-slate-200 dark:border-zinc-800'
+          : 'cursor-pointer border-slate-200 dark:border-zinc-800 hover:border-slate-400 dark:hover:border-zinc-600'
         }
       `}
     >
       {/* Status dot */}
-      <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${isSubmitted ? 'bg-emerald-500' : 'bg-slate-950 animate-pulse'}`} />
+      <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${isSubmitted ? 'bg-emerald-500' : 'bg-slate-900 dark:bg-white animate-pulse'}`} />
 
       {/* Reg No */}
-      <p className={`text-xs font-mono font-bold tracking-wider mb-1 ${isSubmitted ? 'text-slate-400' : 'text-slate-950 group-hover:text-black'}`}>
+      <p className={`text-xs font-mono font-bold tracking-wider mb-1 ${isSubmitted ? 'text-slate-400 dark:text-zinc-500' : 'text-slate-900 dark:text-zinc-100 group-hover:text-black dark:group-hover:text-white'}`}>
         {student.reg_no}
       </p>
 
       {/* Name */}
-      <p className={`text-xs leading-tight truncate font-semibold ${isSubmitted ? 'text-slate-400' : 'text-slate-700'}`}>
+      <p className={`text-xs leading-tight truncate font-semibold ${isSubmitted ? 'text-slate-400 dark:text-zinc-500' : 'text-slate-700 dark:text-zinc-300'}`}>
         {student.name}
       </p>
 
@@ -44,13 +44,13 @@ export function StudentCard({ student, onClick }: StudentCardProps) {
       <div className="mt-2.5 flex items-center gap-1">
         {isSubmitted ? (
           <>
-            <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-            <span className="text-[9px] text-emerald-600 font-bold truncate">Done</span>
+            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold truncate">Done</span>
           </>
         ) : (
           <>
-            <ChevronRight className="w-3 h-3 text-slate-500 group-hover:translate-x-0.5 transition-transform" />
-            <span className="text-[9px] text-slate-600 group-hover:text-slate-950 font-bold">Tap to submit</span>
+            <ChevronRight className="w-3 h-3 text-slate-400 dark:text-zinc-500 group-hover:translate-x-0.5 transition-transform" />
+            <span className="text-[9px] text-slate-500 dark:text-zinc-400 group-hover:text-slate-900 dark:group-hover:text-zinc-200 font-bold">Tap to submit</span>
           </>
         )}
       </div>
