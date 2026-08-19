@@ -10,7 +10,7 @@ import { AdminDashboard } from '@/pages/AdminDashboard';
 import { useEvents } from '@/hooks/useEvents';
 import { DEFAULT_EVENT } from '@/lib/supabase';
 
-const adminSlug = import.meta.env.VITE_ADMIN_SLUG || 'portal-dfa19-review';
+const adminSlug = import.meta.env.VITE_ADMIN_SLUG || 'admin';
 
 function StudentPortal() {
   const [entered, setEntered] = useState(false);

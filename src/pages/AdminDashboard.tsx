@@ -23,7 +23,7 @@ import type { Submission } from '@/types';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
-  const adminSlug = import.meta.env.VITE_ADMIN_SLUG || 'portal-dfa19-review';
+  const adminSlug = import.meta.env.VITE_ADMIN_SLUG || 'admin';
   const { isAuthed, logout } = useAdminSession();
 
   const {

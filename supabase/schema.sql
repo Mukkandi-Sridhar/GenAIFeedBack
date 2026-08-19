@@ -125,7 +125,7 @@ $$;
 grant execute on function verify_admin_code(text) to anon;
 grant execute on function verify_admin_code(text) to authenticated;
 
--- Default Admin Code Hash ("dfa19admin")
-insert into admin_access (id, code_hash, attempts)
-values (1, '$2a$10$vO7g0PahP5f6cRijvx3ppuVLtoCemW/.p4bR8aJPQtGwVl08gMlEi', 0)
-on conflict (id) do update set code_hash = '$2a$10$vO7g0PahP5f6cRijvx3ppuVLtoCemW/.p4bR8aJPQtGwVl08gMlEi';
+-- Default Admin Code Hash ("CSEAIML987")
+INSERT INTO admin_access (id, code_hash, attempts)
+VALUES (1, '$2a$10$qdvfcN68mKbgaN3Im6UXjehszQFUy.QcMosWQGBnp1OzxWXD8l5ZO', 0)
+ON CONFLICT (id) DO UPDATE SET code_hash = '$2a$10$qdvfcN68mKbgaN3Im6UXjehszQFUy.QcMosWQGBnp1OzxWXD8l5ZO', attempts = 0;

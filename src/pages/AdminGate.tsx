@@ -19,7 +19,7 @@ export function AdminGate() {
   const [countdown, setCountdown] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const adminSlug = import.meta.env.VITE_ADMIN_SLUG || 'portal-dfa19-review';
+  const adminSlug = import.meta.env.VITE_ADMIN_SLUG || 'admin';
   const { isAuthed, login } = useAdminSession();
 
   // Redirect if already authed
