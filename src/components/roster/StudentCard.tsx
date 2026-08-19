@@ -21,22 +21,19 @@ export function StudentCard({ student, onClick }: StudentCardProps) {
       aria-label={`Student ${student.reg_no} — ${isSubmitted ? 'already submitted' : 'click to submit feedback'}`}
       className={`
         relative w-full text-left rounded-xl p-3.5 transition-all duration-200 group glass-card
-        ${isSubmitted
-          ? 'opacity-50 cursor-not-allowed border-slate-200 dark:border-zinc-800'
-          : 'cursor-pointer border-slate-200 dark:border-zinc-800 hover:border-slate-400 dark:hover:border-zinc-600'
-        }
+        ${isSubmitted ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}
     >
       {/* Status dot */}
       <div className={`absolute top-3 right-3 w-2 h-2 rounded-full ${isSubmitted ? 'bg-emerald-500' : 'bg-slate-900 dark:bg-white animate-pulse'}`} />
 
       {/* Reg No */}
-      <p className={`text-xs font-mono font-bold tracking-wider mb-1 ${isSubmitted ? 'text-slate-400 dark:text-zinc-500' : 'text-slate-900 dark:text-zinc-100 group-hover:text-black dark:group-hover:text-white'}`}>
+      <p className="text-xs font-mono font-bold tracking-wider mb-1 text-slate-900 dark:text-zinc-100 group-hover:text-black dark:group-hover:text-white">
         {student.reg_no}
       </p>
 
       {/* Name */}
-      <p className={`text-xs leading-tight truncate font-semibold ${isSubmitted ? 'text-slate-400 dark:text-zinc-500' : 'text-slate-700 dark:text-zinc-300'}`}>
+      <p className="text-xs leading-tight truncate font-semibold text-slate-700 dark:text-zinc-300">
         {student.name}
       </p>
 
