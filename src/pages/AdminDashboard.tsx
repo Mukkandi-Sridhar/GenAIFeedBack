@@ -37,7 +37,15 @@ export function AdminDashboard() {
 
   const activeEventId = activeEvent?.id;
 
-  const { submissions, loading: subLoading, connected, newSubmissionAlert, refetch } = useSubmissions(activeEventId);
+  const {
+    submissions,
+    loading: subLoading,
+    connected,
+    newSubmissionAlert,
+    refetch,
+    deleteSubmission,
+  } = useSubmissions(activeEventId);
+
   const { students } = useStudents(activeEventId);
   const { addToast } = useToast();
 
@@ -64,6 +72,18 @@ export function AdminDashboard() {
     setSelectedSub(sub);
     if (window.innerWidth < 1024) {
       setMobileSheetOpen(true);
+    }
+  };
+
+  const handleDeleteSubmission = async (sub: Submission) => {
+    try {
+      await deleteSubmission(sub);
+      addToast('success', `Deleted submission for ${sub.student_name} (${sub.reg_no})`);
+      if (selectedSub?.id === sub.id) {
+        setSelectedSub(null);
+      }
+    } catch (err: any) {
+      addToast('error', err.message || 'Failed to delete submission');
     }
   };
 
@@ -197,6 +217,7 @@ export function AdminDashboard() {
                 selectedId={selectedSub?.id ?? null}
                 onSelect={handleSelectRow}
                 highlightId={highlightId}
+                onDeleteSubmission={handleDeleteSubmission}
               />
             </div>
 

@@ -47,6 +47,31 @@ export function useSubmissions(eventId?: string) {
     }
   }, [eventId]);
 
+  const deleteSubmission = useCallback(async (sub: Submission) => {
+    const { error: delErr } = await supabase
+      .from('submissions')
+      .delete()
+      .eq('id', sub.id);
+
+    if (delErr) throw delErr;
+
+    // Reset student status to pending so they can resubmit
+    if (sub.event_id) {
+      await supabase
+        .from('students')
+        .update({ status: 'pending', submitted_at: null })
+        .eq('reg_no', sub.reg_no)
+        .eq('event_id', sub.event_id);
+    } else {
+      await supabase
+        .from('students')
+        .update({ status: 'pending', submitted_at: null })
+        .eq('reg_no', sub.reg_no);
+    }
+
+    setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
+  }, []);
+
   useEffect(() => {
     fetchSubmissions();
 
@@ -72,6 +97,16 @@ export function useSubmissions(eventId?: string) {
           );
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'submissions' },
+        (payload) => {
+          const deletedId = payload.old?.id;
+          if (deletedId) {
+            setSubmissions((prev) => prev.filter((s) => s.id !== deletedId));
+          }
+        }
+      )
       .subscribe((status) => {
         setConnected(status === 'SUBSCRIBED');
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -84,5 +119,13 @@ export function useSubmissions(eventId?: string) {
     };
   }, [fetchSubmissions, eventId]);
 
-  return { submissions, loading, error, connected, newSubmissionAlert, refetch: fetchSubmissions };
+  return {
+    submissions,
+    loading,
+    error,
+    connected,
+    newSubmissionAlert,
+    refetch: fetchSubmissions,
+    deleteSubmission,
+  };
 }

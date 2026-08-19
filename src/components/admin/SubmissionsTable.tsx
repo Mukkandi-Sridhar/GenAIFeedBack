@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ChevronUp, ChevronDown, ChevronsUpDown, X, Filter } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, ChevronsUpDown, X, Filter, Trash2 } from 'lucide-react';
 import { SkeletonRow } from '@/components/ui/Skeleton';
 import { Badge } from '@/components/ui/Badge';
 import type { Submission } from '@/types';
@@ -15,6 +15,7 @@ interface SubmissionsTableProps {
   selectedId: string | null;
   onSelect: (sub: Submission) => void;
   highlightId?: string | null;
+  onDeleteSubmission?: (sub: Submission) => void;
 }
 
 export function SubmissionsTable({
@@ -23,6 +24,7 @@ export function SubmissionsTable({
   selectedId,
   onSelect,
   highlightId,
+  onDeleteSubmission,
 }: SubmissionsTableProps) {
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('created_at');
@@ -61,6 +63,17 @@ export function SubmissionsTable({
     } else {
       setSortKey(key);
       setSortDir('desc');
+    }
+  };
+
+  const handleDeleteRow = (e: React.MouseEvent, sub: Submission) => {
+    e.stopPropagation();
+    if (
+      window.confirm(
+        `Are you sure you want to delete the submission for ${sub.student_name} (${sub.reg_no})?\n\nThis will reset their status back to pending.`
+      )
+    ) {
+      onDeleteSubmission?.(sub);
     }
   };
 
@@ -127,7 +140,7 @@ export function SubmissionsTable({
 
       {/* Table */}
       <div className="overflow-auto flex-1 rounded-xl border border-white/10 glass-card">
-        <table className="w-full text-sm data-table min-w-[700px]">
+        <table className="w-full text-sm data-table min-w-[750px]">
           <thead>
             <tr className="border-b border-white/10">
               <Th label="S.No" k="sno" cls="w-14" />
@@ -137,6 +150,7 @@ export function SubmissionsTable({
               <Th label="Files" k="file_urls" cls="w-16" />
               <Th label="Submitted At" k="created_at" />
               <Th label="Source" k="source" cls="w-24" />
+              <th className="px-4 py-3.5 text-center text-[11px] font-bold text-zinc-400 uppercase tracking-wider w-12">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -144,7 +158,7 @@ export function SubmissionsTable({
               Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-16 text-zinc-500 text-sm">
+                <td colSpan={8} className="text-center py-16 text-zinc-500 text-sm">
                   No submissions found.
                 </td>
               </tr>
@@ -172,6 +186,16 @@ export function SubmissionsTable({
                     </td>
                     <td className="px-4 py-3">
                       <Badge type={sub.source === 'admin_added' ? 'admin_added' : 'submitted'} />
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={(e) => handleDeleteRow(e, sub)}
+                        className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer"
+                        title={`Delete submission for ${sub.student_name}`}
+                        aria-label={`Delete submission for ${sub.student_name}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </motion.tr>
                 </AnimatePresence>
