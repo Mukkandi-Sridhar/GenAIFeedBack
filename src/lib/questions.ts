@@ -61,19 +61,19 @@ export const APPROVED_QUESTIONS: QuestionConfig[] = [
     id: 'q8',
     label: 'What do you like most about how the subject is taught?',
     type: 'short_text',
-    required: false,
+    required: true,
   },
   {
     id: 'q9',
     label: "Is there anything you'd suggest to improve the teaching?",
     type: 'textarea',
-    required: false,
+    required: true,
   },
   {
     id: 'q10',
     label: 'Any additional feedback for the faculty?',
     type: 'textarea',
-    required: false,
+    required: true,
   },
 ];
 
