@@ -40,11 +40,14 @@ export function useStudents(eventId?: string) {
       }
 
       // 2. Fetch active submissions to compute status dynamically
-      let submissionsQuery = supabase.from('submissions').select('reg_no, event_id, source, feedback_text');
-      if (isValidUuid) {
-        submissionsQuery = submissionsQuery.eq('event_id', eventId);
+      // Only select reg_no, source, feedback_text to stay compatible with legacy schema (resilient to missing event_id)
+      const { data: subs, error: subsErr } = await supabase
+        .from('submissions')
+        .select('reg_no, source, feedback_text');
+
+      if (subsErr) {
+        console.warn('[useStudents submissions query warning]:', subsErr.message);
       }
-      const { data: subs } = await submissionsQuery;
 
       const activeSubmittedRegs = new Set(
         (subs || [])
