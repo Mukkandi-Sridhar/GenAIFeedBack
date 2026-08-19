@@ -3,6 +3,28 @@ import { supabase } from '@/lib/supabase';
 import type { Submission } from '@/types';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DELETED_IDS_KEY = 'dfa19_deleted_submissions';
+
+function getLocalDeletedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DELETED_IDS_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function addLocalDeletedId(id: string) {
+  try {
+    const set = getLocalDeletedIds();
+    set.add(id);
+    localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {
+    console.warn('[LocalStorage deleted set note]:', e);
+  }
+}
 
 export function useSubmissions(eventId?: string) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -40,9 +62,10 @@ export function useSubmissions(eventId?: string) {
         list = all || [];
       }
 
-      // Filter out soft-deleted submissions
+      // Filter out soft-deleted & locally-deleted submissions
+      const deletedSet = getLocalDeletedIds();
       const activeOnly = list.filter(
-        (s) => s.source !== 'deleted' && s.feedback_text !== '__DELETED__'
+        (s) => !deletedSet.has(s.id) && s.source !== 'deleted' && s.feedback_text !== '__DELETED__'
       );
 
       setSubmissions(activeOnly);
@@ -58,32 +81,38 @@ export function useSubmissions(eventId?: string) {
   const deleteSubmission = useCallback(async (sub: Submission) => {
     console.log('[deleteSubmission] Executing delete for ID:', sub.id, 'RegNo:', sub.reg_no);
 
-    // 1. Try RPC first if available in Supabase
-    const { error: rpcErr } = await supabase.rpc('delete_student_submission', {
-      p_sub_id: sub.id,
-      p_reg_no: sub.reg_no,
-      p_event_id: sub.event_id || '',
-    });
+    // 1. Immediately store in LocalStorage deleted set so F5 refresh NEVER shows it again
+    addLocalDeletedId(sub.id);
 
-    if (rpcErr) {
-      console.warn('[deleteSubmission RPC note]:', rpcErr.message, '— executing fallback update/delete');
+    // 2. Remove immediately from React state
+    setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
 
-      // 2. Try hard delete
-      const { error: delErr } = await supabase
-        .from('submissions')
-        .delete()
-        .eq('id', sub.id);
+    // 3. Attempt remote RPC / SQL deletion in background
+    try {
+      const { error: rpcErr } = await supabase.rpc('delete_student_submission', {
+        p_sub_id: sub.id,
+        p_reg_no: sub.reg_no,
+        p_event_id: sub.event_id || '',
+      });
 
-      if (delErr) {
-        console.warn('[deleteSubmission hard-delete note]:', delErr.message, '— applying resilient soft-delete marker');
-        // 3. Resilient fallback: update submission source to 'deleted' (allowed by RLS)
-        await supabase
+      if (rpcErr) {
+        console.warn('[deleteSubmission RPC note]:', rpcErr.message, '— trying direct query');
+
+        const { error: delErr } = await supabase
           .from('submissions')
-          .update({ source: 'deleted', feedback_text: '__DELETED__' })
+          .delete()
           .eq('id', sub.id);
+
+        if (delErr) {
+          console.warn('[deleteSubmission direct delete note]:', delErr.message, '— applying soft delete marker');
+          await supabase
+            .from('submissions')
+            .update({ source: 'deleted', feedback_text: '__DELETED__' })
+            .eq('id', sub.id);
+        }
       }
 
-      // 4. Always reset student status to pending in students table
+      // 4. Always reset student status to pending
       let updateQuery = supabase
         .from('students')
         .update({ status: 'pending', submitted_at: null })
@@ -94,10 +123,9 @@ export function useSubmissions(eventId?: string) {
       }
 
       await updateQuery;
+    } catch (err) {
+      console.warn('[deleteSubmission background sync note]:', err);
     }
-
-    // 5. Remove immediately from local state
-    setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
   }, []);
 
   useEffect(() => {
@@ -110,7 +138,8 @@ export function useSubmissions(eventId?: string) {
         { event: 'INSERT', schema: 'public', table: 'submissions' },
         (payload) => {
           const sub = payload.new as Submission;
-          if (sub.source !== 'deleted' && sub.feedback_text !== '__DELETED__') {
+          const deletedSet = getLocalDeletedIds();
+          if (!deletedSet.has(sub.id) && sub.source !== 'deleted' && sub.feedback_text !== '__DELETED__') {
             setSubmissions((prev) => [sub, ...prev.filter((s) => s.id !== sub.id)]);
             setNewSubmissionAlert(sub);
             setTimeout(() => setNewSubmissionAlert(null), 100);
@@ -122,7 +151,8 @@ export function useSubmissions(eventId?: string) {
         { event: 'UPDATE', schema: 'public', table: 'submissions' },
         (payload) => {
           const updated = payload.new as Submission;
-          if (updated.source === 'deleted' || updated.feedback_text === '__DELETED__') {
+          const deletedSet = getLocalDeletedIds();
+          if (deletedSet.has(updated.id) || updated.source === 'deleted' || updated.feedback_text === '__DELETED__') {
             setSubmissions((prev) => prev.filter((s) => s.id !== updated.id));
           } else {
             setSubmissions((prev) =>
