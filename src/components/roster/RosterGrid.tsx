@@ -41,7 +41,6 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
   const submittedCount = students.filter((s) => s.status === 'submitted').length;
   const pendingCount = pendingStudents.length;
 
-  // Speak the anonymity message and auto-navigate when done
   const speakAndProceed = (student: Student) => {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
@@ -55,32 +54,33 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
     utterance.pitch = 1.05;
     utterance.volume = 1;
 
-    // Pick a clear English voice if available
+    // Try to pick a clear voice — safe even if voices not yet loaded
     const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(
-      (v) =>
-        v.lang.startsWith('en') &&
-        (v.name.toLowerCase().includes('google') ||
-          v.name.toLowerCase().includes('female') ||
-          v.name.toLowerCase().includes('zira') ||
-          v.name.toLowerCase().includes('samantha'))
-    );
-    if (preferred) utterance.voice = preferred;
+    if (voices.length > 0) {
+      const preferred = voices.find(
+        (v) =>
+          v.lang.startsWith('en') &&
+          (v.name.toLowerCase().includes('google') ||
+            v.name.toLowerCase().includes('female') ||
+            v.name.toLowerCase().includes('zira') ||
+            v.name.toLowerCase().includes('samantha'))
+      ) || voices.find((v) => v.lang.startsWith('en'));
+      if (preferred) utterance.voice = preferred;
+    }
 
     utterance.onstart = () => setSpeaking(true);
 
     utterance.onend = () => {
       setSpeaking(false);
       setSpeechDone(true);
-      // Auto-navigate after speech ends
       setTimeout(() => {
         setConfirmStudent(null);
         navigate(`/feedback/${encodeURIComponent(student.reg_no)}`);
       }, 400);
     };
 
-    utterance.onerror = () => {
-      // On error still navigate
+    utterance.onerror = (e) => {
+      console.warn('[TTS error]', e);
       setSpeaking(false);
       setSpeechDone(true);
       setTimeout(() => {
@@ -98,16 +98,12 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
     setSpeechDone(false);
     setSpeaking(false);
 
-    // Voices may not be loaded yet — wait for them then speak
-    if (window.speechSynthesis.getVoices().length > 0) {
+    // Use requestAnimationFrame so modal renders first, then speak.
+    // Always call speak() directly — browser queues utterances and
+    // resolves voices internally, even on first load.
+    requestAnimationFrame(() => {
       speakAndProceed(student);
-    } else {
-      window.speechSynthesis.addEventListener('voiceschanged', () => speakAndProceed(student), { once: true });
-      // Fallback: if voices never fire, start immediately after 300ms
-      setTimeout(() => {
-        if (!speaking) speakAndProceed(student);
-      }, 300);
-    }
+    });
   };
 
   // Cancel speech if modal is closed manually
