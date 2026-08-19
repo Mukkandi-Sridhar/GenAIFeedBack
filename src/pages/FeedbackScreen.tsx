@@ -19,19 +19,20 @@ export function FeedbackScreen() {
     if (!regNo) { navigate('/roster', { replace: true }); return; }
 
     (async () => {
+      const decodedReg = decodeURIComponent(regNo);
       const { data, error: err } = await supabase
         .from('students')
         .select('*')
-        .eq('reg_no', decodeURIComponent(regNo))
-        .single();
+        .eq('reg_no', decodedReg)
+        .limit(1);
 
-      if (err || !data) {
+      if (err || !data || data.length === 0) {
         setError('Student not found in the roster.');
-      } else if (data.status === 'submitted') {
+      } else if (data[0].status === 'submitted') {
         navigate('/roster', { replace: true });
         return;
       } else {
-        setStudent(data);
+        setStudent(data[0]);
       }
       setLoading(false);
     })();
@@ -39,12 +40,12 @@ export function FeedbackScreen() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">
         {/* Header */}
-        <header className="sticky top-0 z-20 border-b border-white/8 backdrop-blur-xl bg-[#060B18]/80">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
-            <div className="flex-1">
-              <p className="text-xs font-semibold text-slate-300">
+        <header className="sticky top-0 z-20 border-b border-slate-200 dark:border-white/10 backdrop-blur-xl bg-white/80 dark:bg-zinc-900/80 shadow-sm">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black text-slate-950 dark:text-white uppercase tracking-wider">
                 Conference Feedback & Intake Portal
               </p>
             </div>
@@ -54,30 +55,30 @@ export function FeedbackScreen() {
 
         <main className="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 py-8">
           {loading ? (
-            <div className="flex items-center justify-center py-32 gap-3 text-slate-400">
+            <div className="flex items-center justify-center py-32 gap-3 text-slate-600 dark:text-zinc-400">
               <Loader2 className="w-6 h-6 animate-spin" />
-              <span className="text-sm">Loading student data…</span>
+              <span className="text-sm font-semibold">Loading student data…</span>
             </div>
           ) : error ? (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass-card rounded-2xl p-10 text-center flex flex-col items-center gap-4"
+              className="glass-card rounded-2xl p-10 text-center flex flex-col items-center gap-4 border border-slate-200"
             >
-              <AlertCircle className="w-12 h-12 text-red-400" />
-              <p className="text-slate-300 font-medium">{error}</p>
+              <AlertCircle className="w-12 h-12 text-red-600" />
+              <p className="text-slate-950 font-bold">{error}</p>
               <button
                 onClick={() => navigate('/roster')}
-                className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer underline underline-offset-2"
+                className="text-sm font-bold text-slate-950 hover:underline cursor-pointer"
               >
                 Return to Roster
               </button>
             </motion.div>
           ) : student ? (
             <>
-              <div className="mb-8">
-                <h1 className="text-fluid-xl font-bold text-slate-100 mb-1">Submit Your Feedback</h1>
-                <p className="text-sm text-slate-400">
+              <div className="mb-8 space-y-1">
+                <h1 className="text-fluid-xl font-black text-slate-950 dark:text-white tracking-tight">Submit Your Feedback</h1>
+                <p className="text-sm font-medium text-slate-600 dark:text-zinc-400">
                   Share your experience and key takeaways from the session.
                 </p>
               </div>

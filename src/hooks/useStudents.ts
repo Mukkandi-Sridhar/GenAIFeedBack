@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Student } from '@/types';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function useStudents(eventId?: string) {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -10,17 +12,34 @@ export function useStudents(eventId?: string) {
   const fetchStudents = useCallback(async () => {
     try {
       setError(null);
-      let query = supabase.from('students').select('*').order('reg_no', { ascending: true });
 
-      if (eventId) {
-        query = query.eq('event_id', eventId);
+      // Only attempt event_id filter if it's a valid UUID
+      const isValidUuid = eventId && UUID_REGEX.test(eventId);
+
+      if (isValidUuid) {
+        const { data: eventScoped, error: err1 } = await supabase
+          .from('students')
+          .select('*')
+          .eq('event_id', eventId)
+          .order('reg_no', { ascending: true });
+
+        if (!err1 && eventScoped && eventScoped.length > 0) {
+          setStudents(eventScoped);
+          setLoading(false);
+          return;
+        }
       }
 
-      const { data, error: err } = await query;
-      if (err) throw err;
+      // Fallback: fetch all students from roster (resilient to missing event_id or legacy schema)
+      const { data: allStudents, error: err2 } = await supabase
+        .from('students')
+        .select('*')
+        .order('reg_no', { ascending: true });
 
-      setStudents(data || []);
+      if (err2) throw err2;
+      setStudents(allStudents || []);
     } catch (e: any) {
+      console.error('[useStudents error]:', e);
       setError(e.message || 'Failed to load roster');
     } finally {
       setLoading(false);

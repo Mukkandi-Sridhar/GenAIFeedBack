@@ -30,11 +30,12 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
-          <X className="w-8 h-8 text-red-400" />
+      <div className="flex flex-col items-center justify-center py-20 gap-4 glass-card p-8 rounded-2xl">
+        <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center">
+          <X className="w-7 h-7 text-red-600 dark:text-red-400" />
         </div>
-        <p className="text-slate-400 text-sm">Failed to load roster. Please refresh.</p>
+        <p className="text-slate-700 dark:text-zinc-300 font-bold text-sm">Failed to load roster. Please refresh.</p>
+        <p className="text-xs text-slate-500 max-w-sm text-center">{error}</p>
       </div>
     );
   }
@@ -44,35 +45,35 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
       {/* Stats bar */}
       <div className="flex flex-wrap gap-3">
         <div className="flex items-center gap-2 glass-card px-4 py-2 rounded-xl">
-          <Users className="w-4 h-4 text-indigo-400" />
-          <span className="text-sm font-semibold text-slate-200">{students.length} Students</span>
+          <Users className="w-4 h-4 text-slate-700 dark:text-zinc-300" />
+          <span className="text-sm font-extrabold text-slate-900 dark:text-white">{students.length} Students</span>
         </div>
         <div className="flex items-center gap-2 glass-card px-4 py-2 rounded-xl">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span className="text-sm font-semibold text-emerald-300">{submittedCount} Submitted</span>
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="text-sm font-extrabold text-emerald-700 dark:text-emerald-400">{submittedCount} Submitted</span>
         </div>
         <div className="flex items-center gap-2 glass-card px-4 py-2 rounded-xl">
-          <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-          <span className="text-sm font-semibold text-indigo-300">{pendingCount} Pending</span>
+          <div className="w-2 h-2 rounded-full bg-slate-950 dark:bg-white animate-pulse" />
+          <span className="text-sm font-extrabold text-slate-800 dark:text-zinc-200">{pendingCount} Pending</span>
         </div>
       </div>
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
         <input
           type="search"
           placeholder="Search by reg no or name…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-10 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 transition-all"
+          className="w-full bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl pl-10 pr-10 py-3 text-sm font-medium text-slate-950 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-slate-800 dark:focus:border-white/40 shadow-sm transition-all"
           aria-label="Search students"
           id="roster-search"
         />
         {query && (
           <button
             onClick={() => setQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
             aria-label="Clear search"
           >
             <X className="w-4 h-4" />
@@ -84,7 +85,7 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
       {loading ? (
         <RosterSkeleton count={69} />
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-slate-500">
+        <div className="text-center py-16 text-slate-500 dark:text-zinc-400 font-medium">
           <Search className="w-8 h-8 mx-auto mb-3 opacity-40" />
           <p>No students match "{query}"</p>
         </div>
@@ -93,7 +94,7 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
           variants={stagger.container}
           initial="initial"
           animate="animate"
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5"
         >
           {filtered.map((student) => (
             <StudentCard
@@ -106,7 +107,7 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
       )}
 
       {query && filtered.length > 0 && (
-        <p className="text-xs text-slate-500 text-center">
+        <p className="text-xs text-slate-500 font-semibold text-center">
           Showing {filtered.length} of {students.length} students
         </p>
       )}

@@ -16,26 +16,27 @@ export function RosterScreen({ eventInfo, onBack }: RosterScreenProps) {
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">
         {/* ── Header ─────────────────────────────────────────────── */}
-        <header className="sticky top-0 z-20 border-b border-white/8 backdrop-blur-xl bg-[#060B18]/80">
+        <header className="sticky top-0 z-20 border-b border-slate-200 dark:border-white/10 backdrop-blur-xl bg-white/80 dark:bg-zinc-900/80 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
             {onBack && (
               <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={onBack}
-                className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors cursor-pointer mr-2"
+                className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer mr-2"
                 aria-label="Back to landing"
               >
                 <LogOut className="w-4 h-4 rotate-180" />
+                <span>Home</span>
               </motion.button>
             )}
 
             <div className="flex-1 min-w-0">
-              <h1 className="text-sm font-bold text-slate-100 truncate">
-                <span className="gradient-text">{eventInfo.title}</span>
+              <h1 className="text-sm font-black text-slate-950 dark:text-white truncate tracking-tight">
+                {eventInfo.title}
               </h1>
-              <p className="text-[11px] text-slate-500 hidden sm:block">
+              <p className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400 hidden sm:block">
                 {eventInfo.department} · {eventInfo.semester} · {eventInfo.subject} · {eventInfo.event_date}
               </p>
             </div>
@@ -46,10 +47,12 @@ export function RosterScreen({ eventInfo, onBack }: RosterScreenProps) {
 
         {/* ── Main ───────────────────────────────────────────────── */}
         <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-8">
-          <div className="mb-6">
-            <h2 className="text-fluid-xl font-bold text-slate-100 mb-1">Student Registration Roster</h2>
-            <p className="text-sm text-slate-400">
-              Select your registration number to submit your feedback for <em className="text-indigo-300 not-italic">{eventInfo.title}</em>.
+          <div className="mb-6 space-y-1">
+            <h2 className="text-fluid-xl font-extrabold text-slate-950 dark:text-white tracking-tight">
+              Student Registration Roster
+            </h2>
+            <p className="text-sm font-medium text-slate-600 dark:text-zinc-400">
+              Select your registration number to submit your feedback for <em className="text-slate-900 dark:text-zinc-200 not-italic font-bold">{eventInfo.title}</em>.
             </p>
           </div>
 

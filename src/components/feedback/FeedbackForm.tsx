@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { User, MessageSquare, Send, ArrowLeft } from 'lucide-react';
-import { supabase, STORAGE_BUCKET } from '@/lib/supabase';
-import { sanitizeFeedback, sanitizeName } from '@/lib/sanitize';
+import { motion } from 'framer-motion';
+import { Send, User, Hash, MessageSquare, CheckCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { FileUpload } from './FileUpload';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { sanitizeName, sanitizeFeedback } from '@/lib/sanitize';
 import { stagger } from '@/components/layout/PageTransition';
 import type { Student } from '@/types';
 
@@ -15,15 +15,17 @@ interface FeedbackFormProps {
 }
 
 export function FeedbackForm({ student }: FeedbackFormProps) {
+  const navigate = useNavigate();
+  const { addToast } = useToast();
+
   const [name, setName] = useState(student.name);
   const [feedback, setFeedback] = useState('');
   const [files, setFiles] = useState<File[]>([]);
-  const [fileError, setFileError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const { addToast } = useToast();
-  const navigate = useNavigate();
+  const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
 
-  const canSubmit = feedback.trim().length > 0 && !submitting;
+  const canSubmit = feedback.trim().length >= 10 && !submitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,35 +35,29 @@ export function FeedbackForm({ student }: FeedbackFormProps) {
     setFileError(null);
 
     try {
-      // ── 1. Server-side re-check (race condition guard) ──────────
-      const { data: fresh, error: checkErr } = await supabase
-        .from('students')
-        .select('status')
-        .eq('reg_no', student.reg_no)
-        .single();
-
-      if (checkErr) throw new Error('Could not verify submission status');
-      if (fresh.status === 'submitted') {
-        addToast('warning', 'This registration has already been submitted.');
-        navigate('/');
-        return;
-      }
-
-      // ── 2. Upload files ─────────────────────────────────────────
+      // Upload attachments if present
       const fileUrls: string[] = [];
       for (const file of files) {
-        const path = `${student.reg_no}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const ext = file.name.split('.').pop();
+        const path = `${student.reg_no}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
         const { error: uploadErr } = await supabase.storage
-          .from(STORAGE_BUCKET)
-          .upload(path, file, { upsert: false });
+          .from('submissions')
+          .upload(path, file, { cacheControl: '3600', upsert: false });
 
-        if (uploadErr) throw new Error(`Upload failed for ${file.name}: ${uploadErr.message}`);
+        if (uploadErr) {
+          setFileError(`Failed to upload ${file.name}: ${uploadErr.message}`);
+          setSubmitting(false);
+          return;
+        }
 
-        const { data: urlData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-        fileUrls.push(urlData.publicUrl);
+        const { data: publicUrlData } = supabase.storage
+          .from('submissions')
+          .getPublicUrl(path);
+
+        fileUrls.push(publicUrlData.publicUrl);
       }
 
-      // ── 3. Insert submission ────────────────────────────────────
+      // Insert submission
       const cleanFeedback = sanitizeFeedback(feedback);
       const cleanName = sanitizeName(name) || student.name;
 
@@ -76,78 +72,83 @@ export function FeedbackForm({ student }: FeedbackFormProps) {
 
       if (insertErr) throw new Error(insertErr.message);
 
-      // ── 4. Update student status ────────────────────────────────
+      // Update student status
       const { error: updateErr } = await supabase
         .from('students')
         .update({ status: 'submitted', submitted_at: new Date().toISOString() })
-        .eq('reg_no', student.reg_no)
-        .eq('event_id', student.event_id);
+        .eq('reg_no', student.reg_no);
 
-      if (updateErr) throw new Error(updateErr.message);
+      if (updateErr) console.warn('Note on status update:', updateErr.message);
 
-      addToast('success', `Feedback submitted for ${student.reg_no}!`);
-      navigate('/roster', { replace: true });
+      setSubmittedSuccess(true);
+      addToast('success', 'Feedback submitted successfully!');
+      setTimeout(() => navigate('/roster'), 2500);
     } catch (err: any) {
-      addToast('error', err.message || 'Submission failed. Please try again.');
+      addToast('error', err.message || 'Failed to submit feedback. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <motion.form
-      onSubmit={handleSubmit}
-      variants={stagger.container}
-      initial="initial"
-      animate="animate"
-      className="space-y-6 max-w-2xl mx-auto"
-    >
-      {/* Back */}
-      <motion.div variants={stagger.item}>
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Roster
-        </button>
+  if (submittedSuccess) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="glass-card rounded-2xl p-10 text-center space-y-4 border border-slate-200"
+      >
+        <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto">
+          <CheckCircle className="w-10 h-10" />
+        </div>
+        <h2 className="text-2xl font-black text-slate-950 dark:text-white">Thank You!</h2>
+        <p className="text-sm font-medium text-slate-600 dark:text-zinc-300 max-w-md mx-auto">
+          Your feedback for registration number <strong className="text-slate-950 dark:text-white font-bold">{student.reg_no}</strong> has been recorded.
+        </p>
+        <p className="text-xs text-slate-400">Redirecting to roster in 2 seconds…</p>
       </motion.div>
+    );
+  }
 
-      {/* Reg No (read-only) */}
+  return (
+    <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-6 sm:p-8 space-y-6 border border-slate-200/80 bg-white/80 shadow-md">
+      {/* Student Reg No (Read-only) */}
       <motion.div variants={stagger.item} className="space-y-1.5">
-        <label htmlFor="reg-no" className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+        <label className="text-xs font-bold text-slate-700 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+          <Hash className="w-3.5 h-3.5" />
           Registration Number
         </label>
-        <div className="flex items-center gap-3 glass-card px-4 py-3 rounded-xl">
-          <User className="w-4 h-4 text-indigo-400 shrink-0" />
-          <span className="text-sm font-bold text-indigo-300 tracking-wide">{student.reg_no}</span>
-          <span className="text-xs text-slate-500 ml-auto">read-only</span>
-        </div>
+        <input
+          type="text"
+          value={student.reg_no}
+          disabled
+          readOnly
+          className="w-full bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-mono font-bold text-slate-950 dark:text-zinc-200 cursor-not-allowed select-none"
+        />
       </motion.div>
 
-      {/* Name */}
+      {/* Student Name */}
       <motion.div variants={stagger.item} className="space-y-1.5">
-        <label htmlFor="student-name" className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          Full Name
+        <label htmlFor="student-name" className="text-xs font-bold text-slate-700 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+          <User className="w-3.5 h-3.5" />
+          Student Name
         </label>
         <input
           id="student-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Enter your full name"
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 transition-all"
-          aria-required="true"
+          placeholder="Enter your name"
+          maxLength={100}
+          className="w-full bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-semibold text-slate-950 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-slate-800 dark:focus:border-white/40 shadow-sm transition-all"
         />
       </motion.div>
 
       {/* Feedback */}
       <motion.div variants={stagger.item} className="space-y-1.5">
-        <label htmlFor="feedback-text" className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+        <label htmlFor="feedback-text" className="text-xs font-bold text-slate-700 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-2">
           <MessageSquare className="w-3.5 h-3.5" />
           Conference Feedback
-          <span className="text-red-400">*</span>
+          <span className="text-red-500">*</span>
         </label>
         <textarea
           id="feedback-text"
@@ -156,15 +157,15 @@ export function FeedbackForm({ student }: FeedbackFormProps) {
           placeholder="Share your thoughts on the session — key takeaways, speaker insights, topics you'd like to explore further, overall experience…"
           rows={7}
           required
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 transition-all resize-y min-h-[120px]"
+          className="w-full bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-medium text-slate-950 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-slate-800 dark:focus:border-white/40 shadow-sm transition-all min-h-[120px]"
           aria-required="true"
         />
-        <p className="text-[11px] text-slate-500 text-right">{feedback.length} / 5000</p>
+        <p className="text-[11px] font-bold text-slate-500 text-right">{feedback.length} / 5000</p>
       </motion.div>
 
       {/* File Upload */}
       <motion.div variants={stagger.item} className="space-y-1.5">
-        <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+        <label className="text-xs font-bold text-slate-700 dark:text-zinc-400 uppercase tracking-wider">
           Attachments
         </label>
         <FileUpload files={files} onChange={setFiles} error={fileError} />
@@ -178,15 +179,12 @@ export function FeedbackForm({ student }: FeedbackFormProps) {
           loading={submitting}
           disabled={!canSubmit}
           icon={<Send className="w-4 h-4" />}
-          className="w-full sm:w-auto"
+          className="w-full text-base py-3.5"
           id="submit-feedback-btn"
         >
           {submitting ? 'Submitting…' : 'Submit Feedback'}
         </Button>
-        {!feedback.trim() && (
-          <p className="text-xs text-slate-500 mt-2">Feedback text is required to submit.</p>
-        )}
       </motion.div>
-    </motion.form>
+    </form>
   );
 }
