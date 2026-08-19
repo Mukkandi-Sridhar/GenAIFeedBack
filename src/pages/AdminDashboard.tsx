@@ -1,21 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Download, FileSpreadsheet, LogOut, ChevronDown } from 'lucide-react';
+import { Download, FileSpreadsheet, LogOut, ChevronDown, Inbox, Table } from 'lucide-react';
 import { useAdminSession } from '@/hooks/useAdminSession';
 import { useSubmissions } from '@/hooks/useSubmissions';
 import { useStudents } from '@/hooks/useStudents';
 import { useEvents } from '@/hooks/useEvents';
 import { useToast } from '@/components/ui/Toast';
 import { SummaryBar } from '@/components/admin/SummaryBar';
+import { SubmissionsInbox } from '@/components/admin/SubmissionsInbox';
 import { SubmissionsTable } from '@/components/admin/SubmissionsTable';
 import { DetailPanel } from '@/components/admin/DetailPanel';
-import { StudentReport } from '@/components/admin/StudentReport';
 import { AddFeedbackModal } from '@/components/admin/AddFeedbackModal';
 import { EventManagerModal } from '@/components/admin/EventManagerModal';
-import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { PageTransition } from '@/components/layout/PageTransition';
 import { exportBulkPDF } from '@/lib/export-pdf';
 import { exportBulkExcel } from '@/lib/export-excel';
@@ -44,15 +42,19 @@ export function AdminDashboard() {
     newSubmissionAlert,
     refetch,
     deleteSubmission,
+    toggleReadStatus,
+    toggleArchiveStatus,
   } = useSubmissions(activeEventId);
 
   const { students } = useStudents(activeEventId);
   const { addToast } = useToast();
 
   const [selectedSub, setSelectedSub] = useState<Submission | null>(null);
-  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  
+  // Dashboard layout toggle: 'inbox' (default) or 'table'
+  const [viewMode, setViewMode] = useState<'inbox' | 'table'>('inbox');
 
   // Guard: redirect if not authed
   useEffect(() => {
@@ -67,13 +69,6 @@ export function AdminDashboard() {
       setTimeout(() => setHighlightId(null), 2500);
     }
   }, [newSubmissionAlert, addToast]);
-
-  const handleSelectRow = (sub: Submission) => {
-    setSelectedSub(sub);
-    if (window.innerWidth < 1024) {
-      setMobileSheetOpen(true);
-    }
-  };
 
   const handleDeleteSubmission = async (sub: Submission) => {
     try {
@@ -114,10 +109,10 @@ export function AdminDashboard() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-[#060b18] text-zinc-100">
         {/* ── Header ─────────────────────────────────────────────── */}
-        <header className="sticky top-0 z-20 border-b border-white/8 backdrop-blur-xl bg-[#060B18]/80 shrink-0">
-          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
+        <header className="sticky top-0 z-20 border-b border-white/10 backdrop-blur-xl bg-[#060B18]/90 shrink-0">
+          <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3 flex-wrap">
             {/* Title & Module Switcher */}
             <div className="flex items-center gap-3 min-w-0">
               <div>
@@ -140,7 +135,7 @@ export function AdminDashboard() {
                     className="appearance-none bg-white/5 border border-white/10 text-xs text-indigo-300 font-semibold rounded-lg pl-3 pr-7 py-1.5 focus:outline-none focus:border-indigo-500/50 cursor-pointer"
                   >
                     {events.map((ev) => (
-                      <option key={ev.id} value={ev.id} className="bg-navy-900 text-slate-200">
+                      <option key={ev.id} value={ev.id} className="bg-zinc-950 text-slate-200">
                         {ev.title} ({ev.subject})
                       </option>
                     ))}
@@ -183,7 +178,27 @@ export function AdminDashboard() {
                 Excel
               </Button>
 
-              <ThemeToggle />
+              {/* Layout Toggle View Button */}
+              <div className="flex items-center gap-1 bg-white/5 p-0.5 rounded-lg border border-white/10">
+                <button
+                  onClick={() => setViewMode('inbox')}
+                  className={`p-1.5 rounded-md text-xs font-semibold cursor-pointer ${
+                    viewMode === 'inbox' ? 'bg-white text-black shadow-sm' : 'text-zinc-400 hover:text-white'
+                  }`}
+                  title="Inbox View"
+                >
+                  <Inbox className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`p-1.5 rounded-md text-xs font-semibold cursor-pointer ${
+                    viewMode === 'table' ? 'bg-white text-black shadow-sm' : 'text-zinc-400 hover:text-white'
+                  }`}
+                  title="Flat Table View"
+                >
+                  <Table className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
               <button
                 onClick={handleLogout}
@@ -207,51 +222,51 @@ export function AdminDashboard() {
             onRefresh={refetch}
           />
 
-          {/* Desktop two-pane / mobile single-column */}
-          <div className="flex-1 flex gap-5 min-h-0" style={{ minHeight: 'calc(100vh - 260px)' }}>
-            {/* Table — full width on mobile, 65% on desktop */}
-            <div className="flex-1 min-w-0 flex flex-col">
-              <SubmissionsTable
+          {/* Interactive Dual Modes Toggle */}
+          <div className="flex-1 flex flex-col min-h-0">
+            {viewMode === 'inbox' ? (
+              <SubmissionsInbox
                 submissions={submissions}
                 loading={subLoading}
-                selectedId={selectedSub?.id ?? null}
-                onSelect={handleSelectRow}
-                highlightId={highlightId}
                 onDeleteSubmission={handleDeleteSubmission}
+                onToggleRead={toggleReadStatus}
+                onToggleArchive={toggleArchiveStatus}
               />
-            </div>
-
-            {/* Detail panel — desktop only */}
-            <AnimatePresence>
-              {(selectedSub || !subLoading) && (
-                <motion.div
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: '35%' }}
-                  exit={{ opacity: 0, width: 0 }}
-                  transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-                  className="hidden lg:flex shrink-0 flex-col"
-                  style={{ minWidth: '300px', maxWidth: '480px' }}
-                >
-                  <DetailPanel
-                    submission={selectedSub}
-                    onClose={() => setSelectedSub(null)}
+            ) : (
+              <div className="flex gap-5 min-h-[500px]">
+                {/* Flat Table Mode */}
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <SubmissionsTable
+                    submissions={submissions}
+                    loading={subLoading}
+                    selectedId={selectedSub?.id ?? null}
+                    onSelect={(sub) => setSelectedSub(sub)}
+                    highlightId={highlightId}
+                    onDeleteSubmission={handleDeleteSubmission}
                   />
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+
+                {/* Flat Mode Detail panel */}
+                <AnimatePresence>
+                  {selectedSub && (
+                    <motion.div
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: '35%' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      className="hidden lg:flex shrink-0 flex-col"
+                      style={{ minWidth: '300px', maxWidth: '480px' }}
+                    >
+                      <DetailPanel
+                        submission={selectedSub}
+                        onClose={() => setSelectedSub(null)}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
         </main>
-
-        {/* Mobile bottom-sheet for student report */}
-        <Modal
-          open={mobileSheetOpen}
-          onClose={() => setMobileSheetOpen(false)}
-          title={selectedSub ? `${selectedSub.reg_no} — ${selectedSub.student_name}` : 'Report'}
-          adaptiveSheet
-          size="xl"
-        >
-          {selectedSub && <StudentReport submission={selectedSub} />}
-        </Modal>
       </div>
     </PageTransition>
   );

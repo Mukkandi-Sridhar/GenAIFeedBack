@@ -26,7 +26,11 @@ export interface Submission {
   event_id: string;
   reg_no: string;
   student_name: string;
-  feedback_text: string;
+  feedback_text?: string;
+  answers?: Record<string, any>;
+  avg_rating?: number;
+  is_read?: boolean;
+  is_archived?: boolean;
   file_urls: string[];
   source: 'student' | 'admin_added' | 'deleted';
   created_at: string;

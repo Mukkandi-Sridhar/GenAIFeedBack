@@ -1,8 +1,30 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Submission, Student } from '@/types';
+import type { Submission } from '@/types';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DELETED_IDS_KEY = 'dfa19_deleted_submissions';
+
+function getLocalDeletedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DELETED_IDS_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function addLocalDeletedId(id: string) {
+  try {
+    const set = getLocalDeletedIds();
+    set.add(id);
+    localStorage.setItem(DELETED_IDS_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {
+    console.warn('[LocalStorage deleted set note]:', e);
+  }
+}
 
 export function useSubmissions(eventId?: string) {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -51,9 +73,10 @@ export function useSubmissions(eventId?: string) {
       );
 
       // 3. Filter and keep only submissions where the student status is currently 'submitted'
+      const deletedSet = getLocalDeletedIds();
       const activeList = list.filter((s) => {
         const status = studentStatusMap.get(s.reg_no);
-        return status === 'submitted' && s.source !== 'deleted' && s.feedback_text !== '__DELETED__';
+        return status === 'submitted' && !deletedSet.has(s.id) && s.source !== 'deleted' && s.feedback_text !== '__DELETED__';
       });
 
       // 4. De-duplicate to keep only the latest submission per registration number
@@ -80,6 +103,9 @@ export function useSubmissions(eventId?: string) {
     console.log('[deleteSubmission] Resetting student status for RegNo:', sub.reg_no);
 
     // 1. Immediately reset student status to pending (allowed by RLS!)
+    addLocalDeletedId(sub.id);
+    setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
+
     let updateQuery = supabase
       .from('students')
       .update({ status: 'pending', submitted_at: null })
@@ -94,10 +120,7 @@ export function useSubmissions(eventId?: string) {
       console.warn('[deleteSubmission status reset note]:', resetErr.message);
     }
 
-    // 2. Remove immediately from local state
-    setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
-
-    // 3. Background: Try clean database deletion (falls back to soft-delete if blocked by RLS)
+    // 2. Background: Try clean database deletion (falls back to soft-delete if blocked by RLS)
     try {
       const { error: rpcErr } = await supabase.rpc('delete_student_submission', {
         p_sub_id: sub.id,
@@ -120,6 +143,42 @@ export function useSubmissions(eventId?: string) {
       }
     } catch (err) {
       console.warn('[deleteSubmission background delete note]:', err);
+    }
+  }, []);
+
+  const toggleReadStatus = useCallback(async (sub: Submission) => {
+    const nextRead = !sub.is_read;
+    // Local state update
+    setSubmissions((prev) =>
+      prev.map((s) => (s.id === sub.id ? { ...s, is_read: nextRead } : s))
+    );
+
+    // DB update
+    try {
+      await supabase
+        .from('submissions')
+        .update({ is_read: nextRead })
+        .eq('id', sub.id);
+    } catch (err) {
+      console.warn('[toggleReadStatus DB sync note]:', err);
+    }
+  }, []);
+
+  const toggleArchiveStatus = useCallback(async (sub: Submission) => {
+    const nextArchived = !sub.is_archived;
+    // Local state update
+    setSubmissions((prev) =>
+      prev.map((s) => (s.id === sub.id ? { ...s, is_archived: nextArchived } : s))
+    );
+
+    // DB update
+    try {
+      await supabase
+        .from('submissions')
+        .update({ is_archived: nextArchived })
+        .eq('id', sub.id);
+    } catch (err) {
+      console.warn('[toggleArchiveStatus DB sync note]:', err);
     }
   }, []);
 
@@ -155,5 +214,7 @@ export function useSubmissions(eventId?: string) {
     newSubmissionAlert,
     refetch: fetchSubmissions,
     deleteSubmission,
+    toggleReadStatus,
+    toggleArchiveStatus,
   };
 }

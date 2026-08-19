@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { FeedbackForm } from '@/components/feedback/FeedbackForm';
+import { FeedbackWizard } from '@/components/feedback/FeedbackWizard';
 import { PageTransition } from '@/components/layout/PageTransition';
 import type { Student } from '@/types';
 
@@ -85,7 +85,7 @@ export function FeedbackScreen() {
                   Share your experience and key takeaways from the session.
                 </p>
               </div>
-              <FeedbackForm student={student} />
+              <FeedbackWizard student={student} onSuccess={() => navigate('/roster')} />
             </>
           ) : null}
         </main>
@@ -93,3 +93,4 @@ export function FeedbackScreen() {
     </PageTransition>
   );
 }
+

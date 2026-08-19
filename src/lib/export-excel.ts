@@ -13,17 +13,49 @@ export function exportBulkExcel(submissions: Submission[], eventInfo: EventModul
     [], // blank spacer row
   ];
 
-  // ─── Data rows ─────────────────────────────────────────────────
-  const colHeaders = ['S.No', 'Reg No', 'Name', 'Feedback Summary', 'Attachments', 'Submitted At', 'Source'];
-  const dataRows = submissions.map((s, i) => [
-    i + 1,
-    s.reg_no,
-    s.student_name,
-    s.feedback_text,
-    s.file_urls.length,
-    new Date(s.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-    s.source === 'admin_added' ? 'Admin' : 'Student',
-  ]);
+  // ─── Column Headers mapping structured feedback ─────────────────
+  const colHeaders = [
+    'S.No',
+    'Reg No',
+    'Name',
+    'Q1 (Overall Teaching Rating)',
+    'Q2 (Clear Explanations)',
+    'Q3 (Teaching Pace)',
+    'Q4 (Doubts Addressed)',
+    'Q5 (Engaging & Interactive)',
+    'Q6 (Examples Helpful)',
+    'Q7 (Class Organization)',
+    'Q8 (What Liked Most)',
+    'Q9 (Suggestions for Improvement)',
+    'Q10 (Additional Feedback)',
+    'Avg Rating',
+    'AttachmentsCount',
+    'Submitted At',
+    'Source',
+  ];
+
+  const dataRows = submissions.map((s, i) => {
+    const answers = s.answers || {};
+    return [
+      i + 1,
+      s.reg_no,
+      s.student_name,
+      answers.q1 !== undefined ? answers.q1 : 'N/A',
+      answers.q2 || 'N/A',
+      answers.q3 || 'N/A',
+      answers.q4 !== undefined ? answers.q4 : 'N/A',
+      answers.q5 !== undefined ? answers.q5 : 'N/A',
+      answers.q6 || 'N/A',
+      answers.q7 !== undefined ? answers.q7 : 'N/A',
+      answers.q8 || 'N/A',
+      answers.q9 || 'N/A',
+      answers.q10 || 'N/A',
+      s.avg_rating !== undefined ? s.avg_rating : 'N/A',
+      s.file_urls.length,
+      new Date(s.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      s.source === 'admin_added' ? 'Admin' : 'Student',
+    ];
+  });
 
   const wsData = [...header, colHeaders, ...dataRows];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -47,21 +79,23 @@ export function exportBulkExcel(submissions: Submission[], eventInfo: EventModul
     };
   }
 
-  // Wrap feedback column
-  for (let R = headerRowIndex + 1; R <= colRange.e.r; R++) {
-    const cellAddr = XLSX.utils.encode_cell({ r: R, c: 3 });
-    if (ws[cellAddr]) {
-      ws[cellAddr].s = { alignment: { wrapText: true, vertical: 'top' } };
-    }
-  }
-
   // Column widths
   ws['!cols'] = [
     { wch: 6 },   // S.No
     { wch: 18 },  // Reg No
     { wch: 28 },  // Name
-    { wch: 60 },  // Feedback
-    { wch: 14 },  // Attachments
+    { wch: 20 },  // Q1
+    { wch: 18 },  // Q2
+    { wch: 18 },  // Q3
+    { wch: 20 },  // Q4
+    { wch: 20 },  // Q5
+    { wch: 18 },  // Q6
+    { wch: 20 },  // Q7
+    { wch: 30 },  // Q8
+    { wch: 30 },  // Q9
+    { wch: 30 },  // Q10
+    { wch: 12 },  // Avg Rating
+    { wch: 15 },  // AttachmentsCount
     { wch: 24 },  // Submitted At
     { wch: 12 },  // Source
   ];
@@ -77,5 +111,5 @@ export function exportBulkExcel(submissions: Submission[], eventInfo: EventModul
 
   XLSX.utils.book_append_sheet(wb, ws, 'Submissions');
   const cleanTitle = eventInfo.title.replace(/[^a-zA-Z0-9]/g, '_');
-  XLSX.writeFile(wb, `${cleanTitle}_Submissions_${Date.now()}.xlsx`);
+  XLSX.writeFile(wb, `${cleanTitle}_Structured_Feedback_${Date.now()}.xlsx`);
 }

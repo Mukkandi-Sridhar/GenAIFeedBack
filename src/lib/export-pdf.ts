@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Submission, EventModule } from '@/types';
+import { APPROVED_QUESTIONS } from '@/lib/questions';
 import { DEFAULT_EVENT } from '@/lib/supabase';
 
 // ─── Letterhead ────────────────────────────────────────────────────
@@ -47,51 +48,71 @@ function addFooter(doc: jsPDF): void {
   }
 }
 
-// ─── Bulk PDF Export ───────────────────────────────────────────────
+// ─── Bulk PDF Export (Landscape) ──────────────────────────────────
 export function exportBulkPDF(submissions: Submission[], eventInfo: EventModule = DEFAULT_EVENT): void {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  // Use landscape orientation for multi-column feedback mapping
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const startY = addLetterhead(doc, eventInfo);
 
-  const rows = submissions.map((s, i) => [
-    i + 1,
-    s.reg_no,
-    s.student_name,
-    s.feedback_text.length > 100 ? s.feedback_text.slice(0, 97) + '…' : s.feedback_text,
-    s.file_urls.length,
-    new Date(s.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-    s.source === 'admin_added' ? 'Admin' : 'Student',
-  ]);
+  const rows = submissions.map((s, i) => {
+    const answers = s.answers || {};
+    return [
+      i + 1,
+      s.reg_no,
+      s.student_name,
+      answers.q1 !== undefined ? `${answers.q1}/5` : 'N/A',
+      answers.q2 || 'N/A',
+      answers.q3 || 'N/A',
+      answers.q4 !== undefined ? `${answers.q4}/5` : 'N/A',
+      answers.q5 !== undefined ? `${answers.q5}/5` : 'N/A',
+      answers.q6 || 'N/A',
+      answers.q7 !== undefined ? `${answers.q7}/5` : 'N/A',
+      answers.q8 || 'N/A',
+      answers.q9 || 'N/A',
+      answers.q10 || 'N/A',
+      s.avg_rating !== undefined ? s.avg_rating : 'N/A',
+      s.file_urls.length,
+    ];
+  });
+
+  const headers = [
+    'S.No',
+    'Reg No',
+    'Name',
+    'Q1 (Teaching)',
+    'Q2 (Expls)',
+    'Q3 (Pace)',
+    'Q4 (Doubts)',
+    'Q5 (Engage)',
+    'Q6 (Examples)',
+    'Q7 (Struct)',
+    'Q8 (Liked)',
+    'Q9 (Suggest)',
+    'Q10 (Comments)',
+    'Avg',
+    'Files',
+  ];
 
   autoTable(doc, {
     startY,
-    head: [['S.No', 'Reg No', 'Name', 'Feedback Summary', 'Files', 'Submitted At', 'Source']],
+    head: [headers],
     body: rows,
     headStyles: {
       fillColor: [99, 102, 241],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      fontSize: 9,
+      fontSize: 8,
     },
-    bodyStyles: { fontSize: 8, textColor: [30, 40, 80] },
+    bodyStyles: { fontSize: 7.5, textColor: [30, 40, 80] },
     alternateRowStyles: { fillColor: [245, 246, 255] },
-    columnStyles: {
-      0: { cellWidth: 10 },
-      1: { cellWidth: 25 },
-      2: { cellWidth: 35 },
-      3: { cellWidth: 55 },
-      4: { cellWidth: 12 },
-      5: { cellWidth: 30 },
-      6: { cellWidth: 18 },
-    },
-    didDrawPage: (_data: unknown) => { addLetterhead(doc, eventInfo); },
-    margin: { top: 30, left: 14, right: 14 },
+    margin: { top: 30, left: 10, right: 10 },
     showHead: 'everyPage',
-    styles: { overflow: 'linebreak', cellPadding: 2 },
+    styles: { overflow: 'ellipsize', cellPadding: 1.5 },
   });
 
   addFooter(doc);
   const cleanTitle = eventInfo.title.replace(/[^a-zA-Z0-9]/g, '_');
-  doc.save(`${cleanTitle}_Submissions_${Date.now()}.pdf`);
+  doc.save(`${cleanTitle}_Structured_Feedback_${Date.now()}.pdf`);
 }
 
 // ─── Individual PDF Export ─────────────────────────────────────────
@@ -100,14 +121,14 @@ export function exportIndividualPDF(submission: Submission, eventInfo: EventModu
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = addLetterhead(doc, eventInfo);
 
-  // Student block
-  doc.setFontSize(13);
+  // Student block header
+  doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(20, 30, 70);
-  doc.text('Individual Student Report', 14, y + 6);
+  doc.text('Individual Student Evaluation Report', 14, y + 6);
 
   y += 14;
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(40, 50, 90);
 
@@ -116,37 +137,60 @@ export function exportIndividualPDF(submission: Submission, eventInfo: EventModu
     ['Student Name', submission.student_name],
     ['Submitted At', new Date(submission.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })],
     ['Source', submission.source === 'admin_added' ? 'Admin Added' : 'Student Submission'],
+    ['Overall Avg Rating', submission.avg_rating !== undefined ? `${submission.avg_rating} / 5` : 'N/A'],
   ];
 
   meta.forEach(([label, value]) => {
     doc.setFont('helvetica', 'bold');
     doc.text(`${label}:`, 14, y);
     doc.setFont('helvetica', 'normal');
-    doc.text(value, 55, y);
-    y += 7;
+    doc.text(String(value), 55, y);
+    y += 6.5;
   });
 
-  // Feedback
   y += 4;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('Feedback:', 14, y);
+  doc.setFontSize(10.5);
+  doc.text('Evaluation Responses:', 14, y);
   y += 6;
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
+  doc.setFontSize(9);
   doc.setTextColor(50, 60, 100);
 
-  const textLines = doc.splitTextToSize(submission.feedback_text, pageWidth - 28);
-  doc.text(textLines, 14, y);
-  y += textLines.length * 5 + 8;
+  // Print Q1-Q10 responses
+  APPROVED_QUESTIONS.forEach((q) => {
+    // Check height limits to prevent page overflow
+    if (y > 260) {
+      doc.addPage();
+      y = addLetterhead(doc, eventInfo) + 10;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${q.id.toUpperCase()}. ${q.label}`, 14, y);
+    y += 4.5;
+
+    doc.setFont('helvetica', 'normal');
+    const rawVal = submission.answers ? submission.answers[q.id] : null;
+    const answer = rawVal !== null && rawVal !== undefined ? rawVal : (q.id === 'q10' ? submission.feedback_text : 'N/A');
+
+    const formattedAnswer = q.type === 'rating' ? `${answer} / 5` : String(answer);
+    const textLines = doc.splitTextToSize(formattedAnswer, pageWidth - 28);
+    doc.text(textLines, 18, y);
+    y += textLines.length * 4.5 + 4;
+  });
 
   // Attachments
   if (submission.file_urls.length > 0) {
+    if (y > 250) {
+      doc.addPage();
+      y = addLetterhead(doc, eventInfo) + 10;
+    }
+
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
+    doc.setFontSize(10.5);
     doc.setTextColor(20, 30, 70);
-    doc.text('Attachments:', 14, y);
+    doc.text('Submitted Attachments:', 14, y);
     y += 6;
 
     doc.setFont('helvetica', 'normal');
@@ -155,10 +199,10 @@ export function exportIndividualPDF(submission: Submission, eventInfo: EventModu
     submission.file_urls.forEach((url, i) => {
       const filename = url.split('/').pop() || url;
       doc.text(`${i + 1}. ${filename}`, 18, y);
-      y += 5.5;
+      y += 5;
     });
   }
 
   addFooter(doc);
-  doc.save(`${submission.reg_no}_Report.pdf`);
+  doc.save(`${submission.reg_no}_Feedback_Report.pdf`);
 }

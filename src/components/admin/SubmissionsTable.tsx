@@ -44,7 +44,7 @@ export function SubmissionsTable({
         (s) =>
           s.reg_no.toLowerCase().includes(q) ||
           s.student_name.toLowerCase().includes(q) ||
-          s.feedback_text.toLowerCase().includes(q)
+          (s.feedback_text || '').toLowerCase().includes(q)
       );
     }
 
@@ -178,7 +178,7 @@ export function SubmissionsTable({
                     <td className="px-4 py-3 font-mono font-bold text-xs text-white">{sub.reg_no}</td>
                     <td className="px-4 py-3 text-sm text-zinc-200 font-semibold">{sub.student_name}</td>
                     <td className="px-4 py-3 text-xs text-zinc-400 max-w-[220px]">
-                      <span className="line-clamp-2">{sub.feedback_text}</span>
+                      <span className="line-clamp-2">{sub.feedback_text || ''}</span>
                     </td>
                     <td className="px-4 py-3 text-xs text-zinc-300 text-center font-bold">{sub.file_urls.length}</td>
                     <td className="px-4 py-3 text-xs text-zinc-400 whitespace-nowrap">
