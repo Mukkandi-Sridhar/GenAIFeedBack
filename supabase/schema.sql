@@ -125,7 +125,16 @@ $$;
 grant execute on function verify_admin_code(text) to anon;
 grant execute on function verify_admin_code(text) to authenticated;
 
--- Default Admin Code Hash ("CSEAIML987")
-INSERT INTO admin_access (id, code_hash, attempts)
-VALUES (1, '$2a$10$qdvfcN68mKbgaN3Im6UXjehszQFUy.QcMosWQGBnp1OzxWXD8l5ZO', 0)
-ON CONFLICT (id) DO UPDATE SET code_hash = '$2a$10$qdvfcN68mKbgaN3Im6UXjehszQFUy.QcMosWQGBnp1OzxWXD8l5ZO', attempts = 0;
+-- Storage RLS policies for public file uploads in "submissions" bucket
+insert into storage.buckets (id, name, public)
+values ('submissions', 'submissions', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Public Submissions Upload" on storage.objects;
+drop policy if exists "Public Submissions Select" on storage.objects;
+
+create policy "Public Submissions Upload" on storage.objects
+  for insert with check (bucket_id = 'submissions');
+
+create policy "Public Submissions Select" on storage.objects
+  for select using (bucket_id = 'submissions');
