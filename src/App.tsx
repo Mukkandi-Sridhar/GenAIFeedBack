@@ -62,9 +62,16 @@ export default function App() {
           {/* Feedback form */}
           <Route path="/feedback/:regNo" element={<FeedbackScreen />} />
 
-          {/* Admin routes */}
-          <Route path={`/${adminSlug}`} element={<AdminGate />} />
-          <Route path={`/${adminSlug}/dashboard`} element={<AdminDashboard />} />
+          {/* Admin routes — supports /admin directly as well as custom VITE_ADMIN_SLUG */}
+          <Route path="/admin" element={<AdminGate />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
+          {adminSlug !== 'admin' && (
+            <>
+              <Route path={`/${adminSlug}`} element={<AdminGate />} />
+              <Route path={`/${adminSlug}/dashboard`} element={<AdminDashboard />} />
+            </>
+          )}
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
