@@ -17,16 +17,21 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
 
+  // Filter out submitted students — only show pending students in the roster
+  const pendingStudents = useMemo(() => {
+    return students.filter((s) => s.status === 'pending');
+  }, [students]);
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return students;
-    return students.filter(
+    if (!q) return pendingStudents;
+    return pendingStudents.filter(
       (s) => s.reg_no.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)
     );
-  }, [students, query]);
+  }, [pendingStudents, query]);
 
   const submittedCount = students.filter((s) => s.status === 'submitted').length;
-  const pendingCount = students.filter((s) => s.status === 'pending').length;
+  const pendingCount = pendingStudents.length;
 
   if (error) {
     return (
@@ -46,7 +51,7 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
       <div className="flex flex-wrap gap-3">
         <div className="flex items-center gap-2 glass-card px-4 py-2 rounded-xl">
           <Users className="w-4 h-4 text-slate-700 dark:text-zinc-300" />
-          <span className="text-sm font-extrabold text-slate-900 dark:text-white">{students.length} Students</span>
+          <span className="text-sm font-extrabold text-slate-900 dark:text-white">{students.length} Total</span>
         </div>
         <div className="flex items-center gap-2 glass-card px-4 py-2 rounded-xl">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -59,35 +64,47 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
-        <input
-          type="search"
-          placeholder="Search by reg no or name…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="w-full bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl pl-10 pr-10 py-3 text-sm font-medium text-slate-950 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-slate-800 dark:focus:border-white/40 shadow-sm transition-all"
-          aria-label="Search students"
-          id="roster-search"
-        />
-        {query && (
-          <button
-            onClick={() => setQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
-            aria-label="Clear search"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+      {pendingStudents.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-zinc-500 pointer-events-none" />
+          <input
+            type="search"
+            placeholder="Search by reg no or name…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl pl-10 pr-10 py-3 text-sm font-medium text-slate-950 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-slate-800 dark:focus:border-white/40 shadow-sm transition-all"
+            aria-label="Search pending students"
+            id="roster-search"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+              aria-label="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Grid */}
       {loading ? (
         <RosterSkeleton count={69} />
+      ) : pendingStudents.length === 0 ? (
+        <div className="glass-card p-12 text-center space-y-3 rounded-2xl border border-slate-200 dark:border-zinc-800">
+          <div className="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+          <h3 className="text-xl font-black text-slate-950 dark:text-white">All Submissions Complete! 🎉</h3>
+          <p className="text-sm font-medium text-slate-600 dark:text-zinc-400 max-w-md mx-auto">
+            Every registered student in this session has submitted their conference feedback.
+          </p>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-slate-500 dark:text-zinc-400 font-medium">
           <Search className="w-8 h-8 mx-auto mb-3 opacity-40" />
-          <p>No students match "{query}"</p>
+          <p>No pending students match "{query}"</p>
         </div>
       ) : (
         <motion.div
@@ -108,7 +125,7 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
 
       {query && filtered.length > 0 && (
         <p className="text-xs text-slate-500 font-semibold text-center">
-          Showing {filtered.length} of {students.length} students
+          Showing {filtered.length} of {pendingStudents.length} pending students
         </p>
       )}
     </div>
