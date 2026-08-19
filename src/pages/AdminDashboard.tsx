@@ -233,8 +233,8 @@ export function AdminDashboard() {
                 onToggleArchive={toggleArchiveStatus}
               />
             ) : (
-              <div className="flex gap-5 min-h-[500px]">
-                {/* Flat Table Mode */}
+              <div className="flex gap-5 min-h-[500px] relative">
+                {/* Table */}
                 <div className="flex-1 min-w-0 flex flex-col">
                   <SubmissionsTable
                     submissions={submissions}
@@ -246,7 +246,7 @@ export function AdminDashboard() {
                   />
                 </div>
 
-                {/* Flat Mode Detail panel */}
+                {/* Desktop side detail panel */}
                 <AnimatePresence>
                   {selectedSub && (
                     <motion.div
@@ -260,6 +260,40 @@ export function AdminDashboard() {
                         submission={selectedSub}
                         onClose={() => setSelectedSub(null)}
                       />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Mobile full-screen overlay detail panel */}
+                <AnimatePresence>
+                  {selectedSub && (
+                    <motion.div
+                      initial={{ opacity: 0, y: '100%' }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: '100%' }}
+                      transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                      className="lg:hidden fixed inset-0 z-50 bg-[#060b18] flex flex-col overflow-hidden"
+                    >
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#060b18]/95 backdrop-blur shrink-0">
+                        <div>
+                          <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Student Report</p>
+                          <p className="text-sm font-bold text-white">{selectedSub.student_name}</p>
+                        </div>
+                        <button
+                          onClick={() => setSelectedSub(null)}
+                          className="p-2 rounded-xl bg-white/5 text-zinc-400 hover:text-white cursor-pointer"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-4">
+                        <DetailPanel
+                          submission={selectedSub}
+                          onClose={() => setSelectedSub(null)}
+                        />
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>

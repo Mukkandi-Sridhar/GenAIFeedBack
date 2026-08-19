@@ -158,9 +158,9 @@ export function SubmissionsInbox({
   const ratingQuestions = APPROVED_QUESTIONS.filter((q) => q.type === 'rating');
 
   return (
-    <div className="glass-card rounded-2xl overflow-hidden border border-white/10 flex h-[680px]">
+    <div className="glass-card rounded-2xl overflow-hidden border border-white/10 flex flex-col lg:flex-row" style={{ minHeight: '600px', maxHeight: '90vh' }}>
       {/* ── LEFT INBOX COLUMN ─────────────────────────────────────── */}
-      <div className="w-full lg:w-[340px] shrink-0 border-r border-white/10 flex flex-col h-full bg-zinc-950/20">
+      <div className={`${activeSubId ? 'hidden lg:flex' : 'flex'} lg:w-[340px] w-full shrink-0 border-b lg:border-b-0 lg:border-r border-white/10 flex-col bg-zinc-950/20`}>
         {/* Header */}
         <div className="p-4 border-b border-white/10 space-y-3 shrink-0">
           <div className="flex items-center justify-between">
@@ -230,7 +230,7 @@ export function SubmissionsInbox({
       </div>
 
       {/* ── RIGHT READING PANE ──────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col h-full bg-zinc-950/40 relative">
+      <div className={`${activeSubId ? 'flex' : 'hidden lg:flex'} flex-1 flex-col bg-zinc-950/40 relative min-h-0`} style={{ minHeight: '560px' }}>
         <AnimatePresence mode="wait">
           {activeSub ? (
             <motion.div
