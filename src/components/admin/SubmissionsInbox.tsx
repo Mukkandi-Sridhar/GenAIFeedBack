@@ -1,7 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, MailOpen, Archive, Trash2, Star, Calendar, User, Search, Paperclip, ChevronRight, X, ArrowLeft, ArrowUpRight, FileText } from 'lucide-react';
+import {
+  Mail, MailOpen, Archive, Trash2, Star, Calendar, User, Search,
+  Paperclip, ArrowLeft, ArrowUpRight, FileText, BarChart3, TrendingUp,
+} from 'lucide-react';
 import { APPROVED_QUESTIONS } from '@/lib/questions';
+import { calculateAverageRating } from '@/lib/questions';
 import type { Submission } from '@/types';
 
 interface SubmissionsInboxProps {
@@ -10,6 +14,41 @@ interface SubmissionsInboxProps {
   onDeleteSubmission: (sub: Submission) => void;
   onToggleRead?: (sub: Submission) => void;
   onToggleArchive?: (sub: Submission) => void;
+}
+
+/**
+ * Parse legacy feedback_text string (e.g. "Q -> answer\nQ2 -> answer2")
+ * into a map keyed by question ID from APPROVED_QUESTIONS.
+ */
+function parseLegacyFeedback(text: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  // Split on question label boundaries
+  for (let i = 0; i < APPROVED_QUESTIONS.length; i++) {
+    const q = APPROVED_QUESTIONS[i];
+    const label = q.label;
+    const nextLabel = APPROVED_QUESTIONS[i + 1]?.label;
+    // Find this question's answer using "-> " marker
+    const marker = `${label} -> `;
+    const startIdx = text.indexOf(marker);
+    if (startIdx === -1) continue;
+    const valueStart = startIdx + marker.length;
+    const valueEnd = nextLabel ? text.indexOf(` ${nextLabel} ->`, valueStart) : text.length;
+    const rawAnswer = text.slice(valueStart, valueEnd > 0 ? valueEnd : text.length).trim();
+    result[q.id] = rawAnswer;
+  }
+  return result;
+}
+
+/**
+ * Get the answers map for a submission.
+ * If structured JSONB answers exist, use those. Otherwise, parse legacy text.
+ */
+function resolveAnswers(sub: Submission): Record<string, any> {
+  if (sub.answers && Object.keys(sub.answers).length > 0) return sub.answers;
+  if (sub.feedback_text && sub.feedback_text.includes(' -> ')) {
+    return parseLegacyFeedback(sub.feedback_text);
+  }
+  return {};
 }
 
 export function SubmissionsInbox({
@@ -27,29 +66,38 @@ export function SubmissionsInbox({
     return submissions.find((s) => s.id === activeSubId) || null;
   }, [submissions, activeSubId]);
 
-  // Set first item as active by default on desktop
+  // Resolved answers for current submission
+  const resolvedAnswers = useMemo(() => {
+    if (!activeSub) return {};
+    return resolveAnswers(activeSub);
+  }, [activeSub]);
+
+  // Compute avg rating from resolved answers (for legacy submissions that lack avg_rating)
+  const computedAvgRating = useMemo(() => {
+    if (activeSub?.avg_rating && activeSub.avg_rating > 0) return activeSub.avg_rating;
+    if (Object.keys(resolvedAnswers).length > 0) return calculateAverageRating(resolvedAnswers);
+    return 0;
+  }, [activeSub, resolvedAnswers]);
+
+  // Auto-select first item on desktop
   useEffect(() => {
     if (!activeSubId && submissions.length > 0 && window.innerWidth >= 1024) {
-      // Find first non-archived submission
       const first = submissions.find((s) => inboxFilter === 'archived' ? s.is_archived : !s.is_archived);
       if (first) setActiveSubId(first.id);
     }
   }, [submissions, activeSubId, inboxFilter]);
 
-  // Filter submissions by search query & archive state
   const filtered = useMemo(() => {
     let list = submissions.filter((s) => {
       const isArchived = s.is_archived || false;
       return inboxFilter === 'archived' ? isArchived : !isArchived;
     });
-
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter(
         (s) =>
           s.reg_no.toLowerCase().includes(q) ||
-          s.student_name.toLowerCase().includes(q) ||
-          (s.feedback_text && s.feedback_text.toLowerCase().includes(q))
+          s.student_name.toLowerCase().includes(q)
       );
     }
     return list;
@@ -57,16 +105,19 @@ export function SubmissionsInbox({
 
   const handleSelectRow = (sub: Submission) => {
     setActiveSubId(sub.id);
-    // Mark as read in DB if unread
-    if (!sub.is_read && onToggleRead) {
-      onToggleRead(sub);
-    }
+    if (!sub.is_read && onToggleRead) onToggleRead(sub);
   };
 
   const getRatingColorClass = (rating: number) => {
     if (rating >= 4) return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25';
     if (rating >= 3) return 'bg-amber-500/10 text-amber-400 border border-amber-500/25';
     return 'bg-rose-500/10 text-rose-400 border border-rose-500/25';
+  };
+
+  const getRatingBgClass = (rating: number) => {
+    if (rating >= 4) return 'bg-emerald-500';
+    if (rating >= 3) return 'bg-amber-500';
+    return 'bg-rose-500';
   };
 
   const getRelativeTime = (dateStr: string) => {
@@ -78,52 +129,35 @@ export function SubmissionsInbox({
       const diffHours = Math.floor(diffMins / 60);
       if (diffHours < 24) return `${diffHours}h ago`;
       return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-    } catch {
-      return '';
-    }
+    } catch { return ''; }
   };
 
+  // Rating questions for mini dashboard bar
+  const ratingQuestions = APPROVED_QUESTIONS.filter((q) => q.type === 'rating');
+
   return (
-    <div className="glass-card rounded-2xl overflow-hidden border border-white/10 flex h-[620px]">
-      {/* ── LEFT INBOX COLUMN ───────────────────────────────────── */}
-      <div className="w-full lg:w-[380px] shrink-0 border-r border-white/10 flex flex-col h-full bg-zinc-950/20">
-        {/* Inbox Search & Filter Header */}
+    <div className="glass-card rounded-2xl overflow-hidden border border-white/10 flex h-[680px]">
+      {/* ── LEFT INBOX COLUMN ─────────────────────────────────────── */}
+      <div className="w-full lg:w-[340px] shrink-0 border-r border-white/10 flex flex-col h-full bg-zinc-950/20">
+        {/* Header */}
         <div className="p-4 border-b border-white/10 space-y-3 shrink-0">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-black text-white uppercase tracking-wider">Inbox</h3>
+            <div>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Inbox</h3>
+              <p className="text-[10px] text-zinc-500 font-semibold mt-0.5">{filtered.length} response{filtered.length !== 1 ? 's' : ''}</p>
+            </div>
             <div className="flex items-center gap-1 bg-white/5 p-0.5 rounded-lg border border-white/5">
-              <button
-                onClick={() => setInboxFilter('active')}
-                className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all cursor-pointer ${
-                  inboxFilter === 'active' ? 'bg-white text-black shadow' : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                ACTIVE
-              </button>
-              <button
-                onClick={() => setInboxFilter('archived')}
-                className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all cursor-pointer ${
-                  inboxFilter === 'archived' ? 'bg-white text-black shadow' : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                ARCHIVED
-              </button>
+              <button onClick={() => setInboxFilter('active')} className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all cursor-pointer ${inboxFilter === 'active' ? 'bg-white text-black shadow' : 'text-zinc-400 hover:text-white'}`}>ACTIVE</button>
+              <button onClick={() => setInboxFilter('archived')} className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider transition-all cursor-pointer ${inboxFilter === 'archived' ? 'bg-white text-black shadow' : 'text-zinc-400 hover:text-white'}`}>ARCHIVED</button>
             </div>
           </div>
-
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
-            <input
-              type="search"
-              placeholder="Search inbox..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700"
-            />
+            <input type="search" placeholder="Search inbox..." value={query} onChange={(e) => setQuery(e.target.value)} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-700" />
           </div>
         </div>
 
-        {/* Inbox Submissions List */}
+        {/* Submissions List */}
         <div className="flex-1 overflow-y-auto divide-y divide-white/5">
           {loading ? (
             <div className="p-8 text-center text-xs text-zinc-500">Loading inbox...</div>
@@ -133,20 +167,16 @@ export function SubmissionsInbox({
             filtered.map((sub) => {
               const isSelected = activeSubId === sub.id;
               const isUnread = !sub.is_read;
-              const avgRating = sub.avg_rating || 0;
+              const subAnswers = resolveAnswers(sub);
+              const subRating = sub.avg_rating && sub.avg_rating > 0 ? sub.avg_rating : calculateAverageRating(subAnswers);
               const hasAttachments = sub.file_urls && sub.file_urls.length > 0;
 
               return (
                 <div
                   key={sub.id}
                   onClick={() => handleSelectRow(sub)}
-                  className={`p-4 transition-all duration-150 cursor-pointer relative flex flex-col gap-1.5 ${
-                    isSelected
-                      ? 'bg-white/5 border-l-2 border-indigo-500'
-                      : 'hover:bg-white/[0.02] border-l-2 border-transparent'
-                  }`}
+                  className={`p-4 transition-all duration-150 cursor-pointer relative flex flex-col gap-1.5 ${isSelected ? 'bg-white/5 border-l-2 border-indigo-500' : 'hover:bg-white/[0.02] border-l-2 border-transparent'}`}
                 >
-                  {/* Status dot & Name */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       {isUnread && (
@@ -155,23 +185,17 @@ export function SubmissionsInbox({
                           <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
                         </span>
                       )}
-                      <span className={`text-xs truncate font-bold ${isUnread ? 'text-white' : 'text-zinc-300'}`}>
-                        {sub.student_name}
-                      </span>
+                      <span className={`text-xs truncate font-bold ${isUnread ? 'text-white' : 'text-zinc-300'}`}>{sub.student_name}</span>
                     </div>
-                    <span className="text-[10px] text-zinc-500 shrink-0 font-medium">
-                      {getRelativeTime(sub.created_at)}
-                    </span>
+                    <span className="text-[10px] text-zinc-500 shrink-0 font-medium">{getRelativeTime(sub.created_at)}</span>
                   </div>
-
-                  {/* Reg No & Average Rating badge */}
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-mono text-zinc-400 font-bold">{sub.reg_no}</span>
                     <div className="flex items-center gap-2">
                       {hasAttachments && <Paperclip className="w-3 h-3 text-zinc-500" />}
-                      {avgRating > 0 && (
-                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${getRatingColorClass(avgRating)}`}>
-                          ⭐ {avgRating}
+                      {subRating > 0 && (
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${getRatingColorClass(subRating)}`}>
+                          ★ {subRating.toFixed(1)}
                         </span>
                       )}
                     </div>
@@ -183,7 +207,7 @@ export function SubmissionsInbox({
         </div>
       </div>
 
-      {/* ── RIGHT READING PANE ─────────────────────────────────── */}
+      {/* ── RIGHT READING PANE ──────────────────────────────────────── */}
       <div className="flex-1 flex flex-col h-full bg-zinc-950/40 relative">
         <AnimatePresence mode="wait">
           {activeSub ? (
@@ -195,107 +219,118 @@ export function SubmissionsInbox({
               transition={{ duration: 0.2 }}
               className="absolute inset-0 flex flex-col"
             >
-              {/* Header Email Toolbar */}
-              <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0 bg-zinc-900/60 backdrop-blur">
-                <div className="flex items-center gap-3">
-                  {/* Back button visible only on mobile */}
-                  <button
-                    onClick={() => setActiveSubId(null)}
-                    className="lg:hidden p-1.5 rounded-lg text-zinc-400 hover:text-white bg-white/5"
-                    aria-label="Back to inbox list"
-                  >
+              {/* Toolbar Header */}
+              <div className="px-5 py-3.5 border-b border-white/10 flex items-center justify-between shrink-0 bg-zinc-900/60 backdrop-blur gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <button onClick={() => setActiveSubId(null)} className="lg:hidden p-1.5 rounded-lg text-zinc-400 hover:text-white bg-white/5 shrink-0">
                     <ArrowLeft className="w-4 h-4" />
                   </button>
-                  <div>
-                    <h4 className="text-sm font-bold text-white leading-tight">
-                      {activeSub.student_name}
-                    </h4>
-                    <p className="text-[10px] font-mono text-zinc-400 font-bold">{activeSub.reg_no}</p>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-bold text-white leading-tight truncate">{activeSub.student_name}</h4>
+                    <p className="text-[10px] font-mono text-zinc-400 font-bold">{activeSub.reg_no} · {new Date(activeSub.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</p>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => onToggleRead?.(activeSub)}
-                    className={`p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer`}
-                    title={activeSub.is_read ? 'Mark as unread' : 'Mark as read'}
-                  >
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => onToggleRead?.(activeSub)} className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer" title={activeSub.is_read ? 'Mark unread' : 'Mark read'}>
                     {activeSub.is_read ? <Mail className="w-4 h-4" /> : <MailOpen className="w-4 h-4" />}
                   </button>
-
-                  <button
-                    onClick={() => onToggleArchive?.(activeSub)}
-                    className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                    title={activeSub.is_archived ? 'Move to active' : 'Archive submission'}
-                  >
+                  <button onClick={() => onToggleArchive?.(activeSub)} className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer" title="Archive">
                     <Archive className="w-4 h-4" />
                   </button>
-
-                  <button
-                    onClick={() => onDeleteSubmission(activeSub)}
-                    className="p-2 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer"
-                    title="Delete submission and reset student status"
-                  >
+                  <button onClick={() => onDeleteSubmission(activeSub)} className="p-2 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors cursor-pointer" title="Delete & reset student">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              {/* Email Content Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {/* Meta details */}
-                <div className="flex items-center gap-6 text-[10px] font-bold text-zinc-500 uppercase tracking-widest bg-white/[0.01] p-3 rounded-xl border border-white/5 shrink-0">
-                  <div className="flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>REG: {activeSub.reg_no}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>DATE: {new Date(activeSub.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}</span>
-                  </div>
-                </div>
+              {/* Scrollable Body */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5">
 
-                {/* Structured Answers list */}
-                <div className="space-y-6">
-                  {APPROVED_QUESTIONS.map((question) => {
-                    const rawVal = activeSub.answers ? activeSub.answers[question.id] : null;
-                    const answer = rawVal !== null && rawVal !== undefined ? rawVal : activeSub.feedback_text;
+                {/* ── RATINGS SUMMARY CARD ─────────────────────────── */}
+                {computedAvgRating > 0 && (
+                  <div className="bg-white/[0.025] border border-white/10 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4 text-indigo-400" />
+                        <span className="text-xs font-extrabold text-zinc-300 uppercase tracking-wider">Rating Overview</span>
+                      </div>
+                      <span className={`text-xs font-extrabold px-3 py-1 rounded-full ${getRatingColorClass(computedAvgRating)}`}>
+                        Avg ★ {computedAvgRating.toFixed(1)} / 5
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {ratingQuestions.map((q) => {
+                        const val = Number(resolvedAnswers[q.id]) || 0;
+                        const pct = (val / (q.scale || 5)) * 100;
+                        return (
+                          <div key={q.id} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] text-zinc-400 font-semibold truncate pr-2 max-w-[75%]">{q.label.replace(/How (well|engaging|clear|organized) (are|is) /, '').replace('?', '')}</span>
+                              <span className="text-[10px] font-extrabold text-white shrink-0">{val > 0 ? `${val}/5` : '—'}</span>
+                            </div>
+                            <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${pct}%` }}
+                                transition={{ duration: 0.5, delay: 0.1 }}
+                                className={`h-full rounded-full ${getRatingBgClass(val)}`}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Q&A RESPONSES ────────────────────────────────── */}
+                <div className="space-y-4">
+                  {APPROVED_QUESTIONS.map((question, idx) => {
+                    const answer = resolvedAnswers[question.id];
+                    const hasAnswer = answer !== null && answer !== undefined && String(answer).trim() !== '' && answer !== 'N/A';
 
                     return (
-                      <div key={question.id} className="space-y-2 border-l-2 border-white/10 pl-4 py-0.5">
-                        <p className="text-xs font-bold text-zinc-400">
-                          {question.label}
-                        </p>
+                      <div key={question.id} className="space-y-1.5">
+                        {/* Question label */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-extrabold text-zinc-600 bg-white/5 px-1.5 py-0.5 rounded font-mono">Q{idx + 1}</span>
+                          <p className="text-[11px] font-bold text-zinc-400 leading-snug">{question.label}</p>
+                        </div>
 
-                        <div className="pt-1">
-                          {/* Rating View */}
+                        {/* Answer */}
+                        <div className="pl-6">
                           {question.type === 'rating' && (
-                            <div className="flex items-center gap-1">
-                              {Array.from({ length: question.scale || 5 }).map((_, idx) => {
-                                const starVal = idx + 1;
-                                const isFilled = Number(answer) >= starVal;
+                            <div className="flex items-center gap-1.5">
+                              {Array.from({ length: question.scale || 5 }).map((_, i) => {
+                                const isFilled = Number(answer) >= i + 1;
                                 return (
-                                  <Star
-                                    key={idx}
-                                    className={`w-4 h-4 ${isFilled ? 'text-yellow-400 fill-current' : 'text-zinc-700'}`}
-                                  />
+                                  <Star key={i} className={`w-4 h-4 transition-colors ${isFilled ? 'text-yellow-400 fill-current' : 'text-zinc-700'}`} />
                                 );
                               })}
+                              {hasAnswer && (
+                                <span className="ml-1 text-xs font-bold text-zinc-300">{answer}/5</span>
+                              )}
                             </div>
                           )}
 
-                          {/* Select group option */}
                           {question.type === 'single_select' && (
-                            <span className="inline-flex px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold">
-                              {answer}
-                            </span>
+                            hasAnswer ? (
+                              <span className="inline-flex px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs font-bold">
+                                {answer}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-zinc-600 italic">Not answered</span>
+                            )
                           )}
 
-                          {/* Text & Textarea View */}
                           {(question.type === 'short_text' || question.type === 'textarea') && (
-                            <blockquote className="text-sm font-semibold text-white bg-white/[0.01] p-3 rounded-xl border border-white/5 italic">
-                              "{answer || 'No comments left'}"
-                            </blockquote>
+                            hasAnswer ? (
+                              <div className="bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-3 text-sm text-white font-medium leading-relaxed">
+                                {answer}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-zinc-600 italic">No response</span>
+                            )
                           )}
                         </div>
                       </div>
@@ -303,23 +338,17 @@ export function SubmissionsInbox({
                   })}
                 </div>
 
-                {/* Intake files attachments list */}
+                {/* ── ATTACHMENTS ──────────────────────────────────── */}
                 {activeSub.file_urls && activeSub.file_urls.length > 0 && (
-                  <div className="border-t border-white/10 pt-4 space-y-2 shrink-0">
-                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  <div className="border-t border-white/10 pt-4 space-y-2">
+                    <p className="text-xs font-extrabold text-zinc-400 uppercase tracking-wider">
                       Attachments ({activeSub.file_urls.length})
                     </p>
                     <div className="flex flex-col gap-2">
                       {activeSub.file_urls.map((url, idx) => {
                         const filename = url.split('/').pop()?.split('_').slice(1).join('_') || `Attachment_${idx + 1}`;
                         return (
-                          <a
-                            key={idx}
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.06] text-xs font-bold text-white hover:text-indigo-400 transition-all"
-                          >
+                          <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.06] text-xs font-bold text-white hover:text-indigo-400 transition-all">
                             <div className="flex items-center gap-2">
                               <FileText className="w-4 h-4 text-zinc-400" />
                               <span>{filename}</span>
@@ -334,9 +363,10 @@ export function SubmissionsInbox({
               </div>
             </motion.div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-zinc-500">
-              <Mail className="w-12 h-12 mb-3 opacity-20" />
-              <p className="text-sm">Select an inbox row to read submission report</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-zinc-600">
+              <TrendingUp className="w-12 h-12 mb-3 opacity-20" />
+              <p className="text-sm font-semibold">Select a submission to view full response</p>
+              <p className="text-xs mt-1">Ratings, selections, and written feedback will appear here</p>
             </div>
           )}
         </AnimatePresence>
