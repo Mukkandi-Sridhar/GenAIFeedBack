@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+/* ─── Light Neumorphic × Glassmorphic Fusion Design System ───────── */
+@theme {
+  /* Colors - Light Ceramic & Deep Obsidian Typography */
+  --color-ceramic-50:  #ffffff;
+  --color-ceramic-100: #f8fafc;
+  --color-ceramic-200: #f1f5f9;
+  --color-ceramic-300: #e2e8f0;
+  --color-ceramic-400: #cbd5e1;
+
+  --color-pitch-950: #000000;
+  --color-pitch-900: #09090b;
+  --color-pitch-800: #18181b;
+  --color-pitch-700: #27272a;
+  --color-slate-600: #475569;
+  --color-slate-500: #64748b;
+
+  --color-glass-light: rgba(255, 255, 255, 0.75);
+  --color-glass-border-light: rgba(255, 255, 255, 0.85);
+
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+
+  /* Typography */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* Neumorphic x Glassmorphic Dual Shadows */
+  --shadow-light-neu: 10px 14px 35px rgba(15, 23, 42, 0.07), -8px -8px 25px rgba(255, 255, 255, 0.95);
+  --shadow-light-neu-hover: 14px 20px 45px rgba(15, 23, 42, 0.12), -10px -10px 30px rgba(255, 255, 255, 1);
+  --shadow-light-inset: inset 3px 3px 8px rgba(15, 23, 42, 0.06), inset -3px -3px 8px rgba(255, 255, 255, 0.9);
+}
+
+/* ─── Base Styles ───────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #f8fafc;
+  color: #0f172a;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+body.dark {
+  background-color: #09090b;
+  color: #f4f4f5;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ─── Glassmorphic Reflective Light Card ────────────────────────── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow-light-neu);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 1);
+  box-shadow: var(--shadow-light-neu-hover);
+}
+
+.dark .glass-card {
+  background: rgba(18, 18, 21, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+}
+
+/* ─── Deep Obsidian Gradient Text ─────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #09090b 0%, #1e293b 50%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.dark .gradient-text {
+  background: linear-gradient(135deg, #ffffff 0%, #e4e4e7 40%, #a1a1aa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, #09090b 0%, #18181b 100%);
+  color: #ffffff;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.15);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(15, 23, 42, 0.35); }
+
+/* ─── Skeleton shimmer ──────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(15,23,42,0.04) 25%, rgba(15,23,42,0.09) 50%, rgba(15,23,42,0.04) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+  border-radius: 0.5rem;
+}
+
+/* ─── Pulse ring ───────────────────────────────────────────────── */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(15, 23, 42, 0.2); }
+  70% { box-shadow: 0 0 0 6px rgba(15, 23, 42, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(15, 23, 42, 0); }
+}
+.pulse-ring { animation: pulse-ring 2.2s ease-out infinite; }
+
+/* ─── Table styles ──────────────────────────────────────────────── */
+.data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  color: #0f172a;
+}
+
+/* ─── File upload zone ──────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed rgba(15, 23, 42, 0.18);
+  background: rgba(255, 255, 255, 0.6);
+  transition: border-color 0.2s, background 0.2s;
+}
+.upload-zone.drag-over {
+  border-color: rgba(15, 23, 42, 0.6);
+  background: rgba(255, 255, 255, 0.95);
+}
