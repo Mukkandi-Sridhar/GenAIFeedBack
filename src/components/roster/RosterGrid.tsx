@@ -1,12 +1,11 @@
-import { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Search, X, Users, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, X, Users, CheckCircle2, ShieldAlert, Volume2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { StudentCard } from './StudentCard';
 import { RosterSkeleton } from '@/components/ui/Skeleton';
 import { stagger } from '@/components/layout/PageTransition';
 import { Modal } from '@/components/ui/Modal';
-import { Button } from '@/components/ui/Button';
 import type { Student } from '@/types';
 
 interface RosterGridProps {
@@ -15,15 +14,21 @@ interface RosterGridProps {
   error: string | null;
 }
 
+const ANONYMITY_MESSAGE =
+  'Please note: Your registration number is used only to track completion status and prevent duplicate submissions. ' +
+  'Your name and registration number are never attached to your feedback responses in any report. ' +
+  'Your feedback is completely anonymous. Proceeding now.';
+
 export function RosterGrid({ students, loading, error }: RosterGridProps) {
   const [query, setQuery] = useState('');
   const [confirmStudent, setConfirmStudent] = useState<Student | null>(null);
+  const [speaking, setSpeaking] = useState(false);
+  const [speechDone, setSpeechDone] = useState(false);
   const navigate = useNavigate();
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  // Filter out submitted students — only show pending students in the roster
-  const pendingStudents = useMemo(() => {
-    return students.filter((s) => s.status === 'pending');
-  }, [students]);
+  const pendingStudents = useMemo(() =>
+    students.filter((s) => s.status === 'pending'), [students]);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -36,17 +41,87 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
   const submittedCount = students.filter((s) => s.status === 'submitted').length;
   const pendingCount = pendingStudents.length;
 
-  const handleSelectStudent = (student: Student) => {
-    setConfirmStudent(student);
+  // Speak the anonymity message and auto-navigate when done
+  const speakAndProceed = (student: Student) => {
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    setSpeaking(true);
+    setSpeechDone(false);
+
+    const utterance = new SpeechSynthesisUtterance(ANONYMITY_MESSAGE);
+    utterance.lang = 'en-IN';
+    utterance.rate = 0.92;
+    utterance.pitch = 1.05;
+    utterance.volume = 1;
+
+    // Pick a clear English voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(
+      (v) =>
+        v.lang.startsWith('en') &&
+        (v.name.toLowerCase().includes('google') ||
+          v.name.toLowerCase().includes('female') ||
+          v.name.toLowerCase().includes('zira') ||
+          v.name.toLowerCase().includes('samantha'))
+    );
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onstart = () => setSpeaking(true);
+
+    utterance.onend = () => {
+      setSpeaking(false);
+      setSpeechDone(true);
+      // Auto-navigate after speech ends
+      setTimeout(() => {
+        setConfirmStudent(null);
+        navigate(`/feedback/${encodeURIComponent(student.reg_no)}`);
+      }, 400);
+    };
+
+    utterance.onerror = () => {
+      // On error still navigate
+      setSpeaking(false);
+      setSpeechDone(true);
+      setTimeout(() => {
+        setConfirmStudent(null);
+        navigate(`/feedback/${encodeURIComponent(student.reg_no)}`);
+      }, 400);
+    };
+
+    utteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
   };
 
-  const handleProceed = () => {
-    if (confirmStudent) {
-      const reg = confirmStudent.reg_no;
-      setConfirmStudent(null);
-      navigate(`/feedback/${encodeURIComponent(reg)}`);
+  const handleSelectStudent = (student: Student) => {
+    setConfirmStudent(student);
+    setSpeechDone(false);
+    setSpeaking(false);
+
+    // Voices may not be loaded yet — wait for them then speak
+    if (window.speechSynthesis.getVoices().length > 0) {
+      speakAndProceed(student);
+    } else {
+      window.speechSynthesis.addEventListener('voiceschanged', () => speakAndProceed(student), { once: true });
+      // Fallback: if voices never fire, start immediately after 300ms
+      setTimeout(() => {
+        if (!speaking) speakAndProceed(student);
+      }, 300);
     }
   };
+
+  // Cancel speech if modal is closed manually
+  const handleClose = () => {
+    window.speechSynthesis.cancel();
+    setSpeaking(false);
+    setSpeechDone(false);
+    setConfirmStudent(null);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { window.speechSynthesis.cancel(); };
+  }, []);
 
   if (error) {
     return (
@@ -92,11 +167,7 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
             id="roster-search"
           />
           {query && (
-            <button
-              onClick={() => setQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-              aria-label="Clear search"
-            >
+            <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors cursor-pointer" aria-label="Clear search">
               <X className="w-4 h-4" />
             </button>
           )}
@@ -144,49 +215,90 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
         </p>
       )}
 
-      {/* Anonymity Confirmation Modal */}
+      {/* Anonymity Confirmation Modal — auto-proceeds after voice */}
       <Modal
         open={confirmStudent !== null}
-        onClose={() => setConfirmStudent(null)}
-        title="🔒 Anonymity Confirmation"
+        onClose={handleClose}
+        title="🔒 Privacy Notice"
         size="md"
       >
         {confirmStudent && (
-          <div className="space-y-6 text-center py-2">
-            <div className="w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto">
-              <ShieldAlert className="w-6 h-6" />
+          <div className="space-y-5 text-center py-2">
+            {/* Shield icon with pulse ring while speaking */}
+            <div className="relative w-16 h-16 mx-auto flex items-center justify-center">
+              <AnimatePresence>
+                {speaking && (
+                  <>
+                    <motion.div
+                      key="ring1"
+                      initial={{ scale: 0.8, opacity: 0.6 }}
+                      animate={{ scale: 1.6, opacity: 0 }}
+                      transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
+                      className="absolute inset-0 rounded-full bg-indigo-500/30"
+                    />
+                    <motion.div
+                      key="ring2"
+                      initial={{ scale: 0.8, opacity: 0.4 }}
+                      animate={{ scale: 2.2, opacity: 0 }}
+                      transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut', delay: 0.4 }}
+                      className="absolute inset-0 rounded-full bg-indigo-500/20"
+                    />
+                  </>
+                )}
+              </AnimatePresence>
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors ${speaking ? 'bg-indigo-500/20' : 'bg-indigo-500/10'}`}>
+                {speaking ? (
+                  <Volume2 className="w-7 h-7 text-indigo-400 animate-pulse" />
+                ) : (
+                  <ShieldAlert className="w-7 h-7 text-indigo-400" />
+                )}
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-xs font-extrabold text-zinc-400 uppercase tracking-widest">
-                Selected Identity
-              </p>
+            {/* Student identity */}
+            <div className="space-y-1">
+              <p className="text-[10px] font-extrabold text-zinc-500 uppercase tracking-widest">Selected</p>
               <h3 className="text-base font-black text-white leading-snug">
-                {confirmStudent.name} <span className="font-mono text-indigo-300 font-bold block sm:inline sm:ml-1">({confirmStudent.reg_no})</span>
+                {confirmStudent.name}
+                <span className="font-mono text-indigo-300 font-bold block sm:inline sm:ml-2">
+                  ({confirmStudent.reg_no})
+                </span>
               </h3>
             </div>
 
-            <blockquote className="text-xs text-zinc-400 font-bold bg-white/[0.01] p-4 rounded-xl border border-white/5 leading-relaxed text-left">
-              Registration numbers are used <em className="text-indigo-300 not-italic font-bold">only</em> to track overall completion status and prevent duplicate attempts. Individual registration numbers and names are <strong className="text-white">never</strong> attached to your feedback responses in reports.
-            </blockquote>
+            {/* Message text */}
+            <div className="bg-white/[0.02] border border-white/5 p-4 rounded-xl text-left">
+              <p className="text-xs text-zinc-300 font-semibold leading-relaxed">
+                🔒 <strong className="text-white">Your privacy is protected.</strong> Your registration number is used{' '}
+                <em className="text-indigo-300 not-italic font-bold">only</em> to track completion status and prevent duplicate submissions.
+                Your name and registration number are{' '}
+                <strong className="text-white">never</strong> attached to your feedback in any report.
+                <br /><br />
+                <span className="text-zinc-400">Please listen to the announcement and wait — you will be redirected automatically.</span>
+              </p>
+            </div>
 
-            <div className="flex gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setConfirmStudent(null)}
-                className="flex-1 py-3"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleProceed}
-                className="flex-1 py-3"
-              >
-                Yes, Proceed
-              </Button>
+            {/* Speaking status bar */}
+            <div className="flex items-center justify-center gap-2">
+              {speaking ? (
+                <>
+                  <div className="flex items-end gap-0.5 h-4">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <motion.div
+                        key={i}
+                        className="w-1 bg-indigo-400 rounded-full"
+                        animate={{ height: ['6px', '16px', '6px'] }}
+                        transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1, ease: 'easeInOut' }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-xs font-bold text-indigo-400">Speaking… please listen</span>
+                </>
+              ) : speechDone ? (
+                <span className="text-xs font-bold text-emerald-400">✓ Redirecting you now…</span>
+              ) : (
+                <span className="text-xs font-bold text-zinc-500">Preparing voice…</span>
+              )}
             </div>
           </div>
         )}
