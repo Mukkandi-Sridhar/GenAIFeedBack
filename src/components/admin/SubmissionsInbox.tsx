@@ -17,25 +17,47 @@ interface SubmissionsInboxProps {
 }
 
 /**
- * Parse legacy feedback_text string (e.g. "Q -> answer\nQ2 -> answer2")
- * into a map keyed by question ID from APPROVED_QUESTIONS.
+ * Parse legacy feedback_text string into a map keyed by question ID.
+ * Handles both formats:
+ *  - New:  "Label -> answer | Label2 -> answer2 | ..."
+ *  - Old:  "Label\n-> answer\n\nLabel2\n-> answer2\n\n..."
  */
 function parseLegacyFeedback(text: string): Record<string, string> {
   const result: Record<string, string> = {};
-  // Split on question label boundaries
+
   for (let i = 0; i < APPROVED_QUESTIONS.length; i++) {
     const q = APPROVED_QUESTIONS[i];
-    const label = q.label;
-    const nextLabel = APPROVED_QUESTIONS[i + 1]?.label;
-    // Find this question's answer using "-> " marker
-    const marker = `${label} -> `;
-    const startIdx = text.indexOf(marker);
+    const nextQ = APPROVED_QUESTIONS[i + 1];
+
+    // Find "Label -> " (both "Label -> " and "Label\n-> " variants)
+    const marker1 = `${q.label} -> `;
+    const marker2 = `${q.label}\n-> `;
+
+    let startIdx = text.indexOf(marker1);
+    let markerLen = marker1.length;
+
+    if (startIdx === -1) {
+      startIdx = text.indexOf(marker2);
+      markerLen = marker2.length;
+    }
+
     if (startIdx === -1) continue;
-    const valueStart = startIdx + marker.length;
-    const valueEnd = nextLabel ? text.indexOf(` ${nextLabel} ->`, valueStart) : text.length;
-    const rawAnswer = text.slice(valueStart, valueEnd > 0 ? valueEnd : text.length).trim();
+
+    const valueStart = startIdx + markerLen;
+
+    // Find end: either next question label or end of string
+    let valueEnd = text.length;
+    if (nextQ) {
+      const nextMarker1 = text.indexOf(` | ${nextQ.label} -> `, valueStart);
+      const nextMarker2 = text.indexOf(`\n\n${nextQ.label}`, valueStart);
+      if (nextMarker1 !== -1) valueEnd = nextMarker1;
+      else if (nextMarker2 !== -1) valueEnd = nextMarker2;
+    }
+
+    const rawAnswer = text.slice(valueStart, valueEnd).replace(/^\s*->\s*/, '').trim();
     result[q.id] = rawAnswer;
   }
+
   return result;
 }
 

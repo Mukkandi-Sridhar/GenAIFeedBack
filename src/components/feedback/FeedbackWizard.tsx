@@ -121,7 +121,7 @@ export function FeedbackWizard({ student, onSuccess }: FeedbackWizardProps) {
       const avgRating = calculateAverageRating(sanitizedAnswers);
 
       // Create fallback feedback summary string for backward compatibility
-      const legacySummary = APPROVED_QUESTIONS.map((q) => `${q.label}\n-> ${answers[q.id] || 'N/A'}`).join('\n\n');
+      const legacySummary = APPROVED_QUESTIONS.map((q) => `${q.label} -> ${answers[q.id] ?? 'N/A'}`).join(' | ');
 
       const { error: insertErr } = await supabase.from('submissions').insert({
         event_id: student.event_id,
