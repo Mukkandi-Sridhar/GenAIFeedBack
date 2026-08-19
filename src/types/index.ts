@@ -9,6 +9,7 @@ export interface EventModule {
   semester: string;
   event_date: string;
   is_active: boolean;
+  coordinator?: string;
   total_students?: number;
   created_at: string;
 }

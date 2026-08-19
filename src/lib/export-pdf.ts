@@ -21,7 +21,8 @@ function addLetterhead(doc: jsPDF, eventInfo: EventModule): number {
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(60, 70, 100);
-  doc.text(`Conference: ${eventInfo.title}  |  Subject: ${eventInfo.subject}  |  Date: ${eventInfo.event_date}`, pageWidth / 2, 21, { align: 'center' });
+  const metaText = `Subject: ${eventInfo.subject}${eventInfo.coordinator ? ` (Faculty: ${eventInfo.coordinator})` : ''}  |  Date: ${eventInfo.event_date}`;
+  doc.text(metaText, pageWidth / 2, 21, { align: 'center' });
 
   // Divider
   doc.setDrawColor(220, 220, 240);

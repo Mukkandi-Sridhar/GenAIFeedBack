@@ -126,6 +126,12 @@ export function CoverScreen({ events, onSelectEvent, onEnter }: CoverScreenProps
                       <Building className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                       <span>{ev.department} · {ev.semester}</span>
                     </div>
+                    {ev.coordinator && (
+                      <div className="flex items-center gap-2 pt-0.5">
+                        <span className="text-indigo-400 text-xs shrink-0 font-bold">Faculty:</span>
+                        <span className="text-zinc-200 font-extrabold">{ev.coordinator}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

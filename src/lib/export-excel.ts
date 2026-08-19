@@ -8,7 +8,7 @@ export function exportBulkExcel(submissions: Submission[], eventInfo: EventModul
   // ─── Letterhead rows ───────────────────────────────────────────
   const header = [
     [`${eventInfo.department} | ${eventInfo.semester}`],
-    [`Conference: ${eventInfo.title}  |  Subject: ${eventInfo.subject}  |  Date: ${eventInfo.event_date}`],
+    [`Subject: ${eventInfo.subject}${eventInfo.coordinator ? ` (Faculty: ${eventInfo.coordinator})` : ''}  |  Date: ${eventInfo.event_date}`],
     [`Generated: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`],
     [], // blank spacer row
   ];

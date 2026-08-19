@@ -32,6 +32,7 @@ export const DEFAULT_EVENT: EventModule = {
   department: 'CSE (AI & ML)',
   semester: 'IV Year I Semester',
   event_date: 'August 2026',
+  coordinator: 'Mrs. CH. Sri Lakshmi Prasanna',
   is_active: true,
   created_at: new Date().toISOString(),
 };
