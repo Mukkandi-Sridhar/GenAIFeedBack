@@ -28,7 +28,7 @@ export interface Submission {
   student_name: string;
   feedback_text: string;
   file_urls: string[];
-  source: 'student' | 'admin_added';
+  source: 'student' | 'admin_added' | 'deleted';
   created_at: string;
 }
 
