@@ -26,45 +26,40 @@ export function Modal({ open, onClose, title, children, adaptiveSheet = true, si
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  const maxWMap = { md: 'max-w-md', lg: 'max-w-2xl', xl: 'max-w-4xl' };
+  const maxWClass = size === 'md' ? 'sm:max-w-md' : size === 'xl' ? 'sm:max-w-4xl' : 'sm:max-w-2xl';
 
   return (
     <AnimatePresence>
       {open && (
-        <>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="bottom-sheet-overlay"
+            className="fixed inset-0 bg-black/75 backdrop-blur-md"
             onClick={onClose}
             aria-hidden="true"
           />
 
-          {/* Panel — bottom-sheet on mobile, centered on desktop */}
+          {/* Modal Panel */}
           <motion.div
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            className={`fixed z-[101] w-full glass-card border border-white/10 flex flex-col
-              ${adaptiveSheet
-                ? 'bottom-0 left-0 right-0 rounded-b-none sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:top-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:w-auto sm:${maxWMap[size]}'
-                : `left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl ${maxWMap[size]}`
-              }
-              max-h-[90vh]`}
-            initial={adaptiveSheet ? { y: '100%', opacity: 0 } : { scale: 0.95, opacity: 0 }}
-            animate={adaptiveSheet ? { y: 0, opacity: 1 } : { scale: 1, opacity: 1 }}
-            exit={adaptiveSheet ? { y: '100%', opacity: 0 } : { scale: 0.95, opacity: 0 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+            className={`relative z-[101] w-full ${maxWClass} glass-card border border-white/10 flex flex-col max-h-[90vh] my-auto overflow-hidden shadow-2xl bg-[#121215] text-zinc-100`}
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
           >
             {/* Header */}
             {title && (
-              <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
-                <h2 className="text-base font-semibold text-slate-100">{title}</h2>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0 bg-zinc-900/90">
+                <h2 className="text-base font-bold text-white">{title}</h2>
                 <button
                   onClick={onClose}
-                  className="text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                  className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                   aria-label="Close modal"
                 >
                   <X className="w-5 h-5" />
@@ -73,7 +68,7 @@ export function Modal({ open, onClose, title, children, adaptiveSheet = true, si
             )}
             <div className="overflow-y-auto flex-1 p-6">{children}</div>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   );
