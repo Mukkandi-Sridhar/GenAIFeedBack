@@ -1,6 +1,44 @@
 import * as XLSX from 'xlsx';
 import type { Submission, EventModule } from '@/types';
+import { APPROVED_QUESTIONS, calculateAverageRating } from '@/lib/questions';
 import { DEFAULT_EVENT } from '@/lib/supabase';
+
+// ─── Shared legacy parser (mirrors export-pdf.ts) ─────────────────
+function parseLegacyFeedback(text: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (let i = 0; i < APPROVED_QUESTIONS.length; i++) {
+    const q = APPROVED_QUESTIONS[i];
+    const nextQ = APPROVED_QUESTIONS[i + 1];
+    const marker1 = `${q.label} -> `;
+    const marker2 = `${q.label}\n-> `;
+    let startIdx = text.indexOf(marker1);
+    let markerLen = marker1.length;
+    if (startIdx === -1) { startIdx = text.indexOf(marker2); markerLen = marker2.length; }
+    if (startIdx === -1) continue;
+    const valueStart = startIdx + markerLen;
+    let valueEnd = text.length;
+    if (nextQ) {
+      const sep1 = text.indexOf(` | ${nextQ.label} -> `, valueStart);
+      const sep2 = text.indexOf(`\n\n${nextQ.label}`, valueStart);
+      if (sep1 !== -1) valueEnd = sep1;
+      else if (sep2 !== -1) valueEnd = sep2;
+    }
+    result[q.id] = text.slice(valueStart, valueEnd).replace(/^\s*->\s*/, '').trim();
+  }
+  return result;
+}
+
+function resolveAnswers(s: Submission): Record<string, any> {
+  if (s.answers && Object.keys(s.answers).length > 0) return s.answers;
+  if (s.feedback_text && s.feedback_text.includes(' -> ')) return parseLegacyFeedback(s.feedback_text);
+  return {};
+}
+
+function resolveAvgRating(s: Submission, ans: Record<string, any>): number | string {
+  if (s.avg_rating && s.avg_rating > 0) return s.avg_rating;
+  const computed = calculateAverageRating(ans);
+  return computed > 0 ? computed : 'N/A';
+}
 
 export function exportBulkExcel(submissions: Submission[], eventInfo: EventModule = DEFAULT_EVENT): void {
   const wb = XLSX.utils.book_new();
@@ -35,23 +73,25 @@ export function exportBulkExcel(submissions: Submission[], eventInfo: EventModul
   ];
 
   const dataRows = submissions.map((s, i) => {
-    const answers = s.answers || {};
+    const ans = resolveAnswers(s);
+    const fmtRating = (id: string) => (ans[id] !== undefined && ans[id] !== '' && ans[id] !== 'N/A' ? ans[id] : 'N/A');
+    const fmtText = (id: string) => (ans[id] && ans[id] !== 'N/A' ? String(ans[id]) : 'N/A');
     return [
       i + 1,
       s.reg_no,
       s.student_name,
-      answers.q1 !== undefined ? answers.q1 : 'N/A',
-      answers.q2 || 'N/A',
-      answers.q3 || 'N/A',
-      answers.q4 !== undefined ? answers.q4 : 'N/A',
-      answers.q5 !== undefined ? answers.q5 : 'N/A',
-      answers.q6 || 'N/A',
-      answers.q7 !== undefined ? answers.q7 : 'N/A',
-      answers.q8 || 'N/A',
-      answers.q9 || 'N/A',
-      answers.q10 || 'N/A',
-      s.avg_rating !== undefined ? s.avg_rating : 'N/A',
-      s.file_urls.length,
+      fmtRating('q1'),
+      fmtText('q2'),
+      fmtText('q3'),
+      fmtRating('q4'),
+      fmtRating('q5'),
+      fmtText('q6'),
+      fmtRating('q7'),
+      fmtText('q8'),
+      fmtText('q9'),
+      fmtText('q10'),
+      resolveAvgRating(s, ans),
+      s.file_urls?.length ?? 0,
       new Date(s.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
       s.source === 'admin_added' ? 'Admin' : 'Student',
     ];
