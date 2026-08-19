@@ -154,7 +154,7 @@ export function FeedbackForm({ student }: FeedbackFormProps) {
           id="feedback-text"
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
-          placeholder="Share your thoughts on the session — key takeaways, speaker insights, topics you'd like to explore further, overall experience…"
+          placeholder="Share your thoughts on the session — key takeaways, speaker insights, topics you explored and notes you, overall experience…"
           rows={7}
           required
           className="w-full bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl px-4 py-3 text-sm font-medium text-slate-950 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-slate-800 dark:focus:border-white/40 shadow-sm transition-all min-h-[120px]"

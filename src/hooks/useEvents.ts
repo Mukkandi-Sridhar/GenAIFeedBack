@@ -109,6 +109,12 @@ export function useEvents() {
     await fetchEvents();
   };
 
+  const deleteEventModule = async (eventId: string) => {
+    const { error } = await supabase.from('events').delete().eq('id', eventId);
+    if (error) throw new Error(error.message);
+    await fetchEvents();
+  };
+
   return {
     events,
     activeEvent,
@@ -118,6 +124,8 @@ export function useEvents() {
     setActiveEvent,
     createEventModule,
     toggleEventActive,
+    deleteEventModule,
     refetch: fetchEvents,
   };
 }
+

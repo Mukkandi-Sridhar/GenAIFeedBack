@@ -32,6 +32,7 @@ export function AdminDashboard() {
     selectEvent,
     createEventModule,
     toggleEventActive,
+    deleteEventModule,
   } = useEvents();
 
   const activeEventId = activeEvent?.id;
@@ -137,6 +138,7 @@ export function AdminDashboard() {
                 onSelectEvent={selectEvent}
                 onCreateEvent={createEventModule}
                 onToggleActive={toggleEventActive}
+                onDeleteEvent={deleteEventModule}
               />
 
               <AddFeedbackModal pendingStudents={pendingStudents} onSuccess={refetch} />
