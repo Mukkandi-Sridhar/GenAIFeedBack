@@ -55,6 +55,19 @@ export function RosterScreen({ eventInfo, onBack }: RosterScreenProps) {
             </p>
           </div>
 
+          {/* Privacy & Anonymity Callout */}
+          <div className="mb-6 bg-indigo-500/5 border border-indigo-500/15 rounded-xl p-4 flex items-start gap-3">
+            <span className="text-indigo-400 mt-0.5 shrink-0">🔒</span>
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                Anonymity & Privacy Guarantee
+              </h4>
+              <p className="text-xs text-zinc-400 leading-relaxed font-semibold">
+                Selecting your registration number is <em className="text-indigo-300 not-italic font-bold">only</em> required to verify submission status and prevent duplicate responses. Individual student names and registration numbers are not attached to feedback records in reports.
+              </p>
+            </div>
+          </div>
+
           <RosterGrid students={students} loading={loading} error={error} />
         </main>
       </div>

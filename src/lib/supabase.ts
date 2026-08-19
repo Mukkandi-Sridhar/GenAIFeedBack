@@ -26,12 +26,12 @@ export const STORAGE_BUCKET = 'submissions';
 // Default fallback event module
 export const DEFAULT_EVENT: EventModule = {
   id: 'dfa19-default-id',
-  slug: 'deepfake-detection-analysis',
-  title: 'Deepfake Detection and Analysis',
+  slug: 'generative-ai-evaluation',
+  title: 'Faculty Evaluation & Subject Feedback',
   subject: 'Generative AI',
   department: 'CSE (AI & ML)',
   semester: 'IV Year I Semester',
-  event_date: '19 August 2026',
+  event_date: 'August 2026',
   is_active: true,
   created_at: new Date().toISOString(),
 };
