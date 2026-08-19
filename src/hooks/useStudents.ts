@@ -13,31 +13,52 @@ export function useStudents(eventId?: string) {
     try {
       setError(null);
 
-      // Only attempt event_id filter if it's a valid UUID
+      // 1. Fetch Roster
       const isValidUuid = eventId && UUID_REGEX.test(eventId);
+      let rosterData: any[] = [];
 
       if (isValidUuid) {
-        const { data: eventScoped, error: err1 } = await supabase
+        const { data, error: err1 } = await supabase
           .from('students')
           .select('*')
           .eq('event_id', eventId)
           .order('reg_no', { ascending: true });
 
-        if (!err1 && eventScoped && eventScoped.length > 0) {
-          setStudents(eventScoped);
-          setLoading(false);
-          return;
+        if (!err1 && data && data.length > 0) {
+          rosterData = data;
         }
       }
 
-      // Fallback: fetch all students from roster (resilient to missing event_id or legacy schema)
-      const { data: allStudents, error: err2 } = await supabase
-        .from('students')
-        .select('*')
-        .order('reg_no', { ascending: true });
+      if (rosterData.length === 0) {
+        const { data: all, error: err2 } = await supabase
+          .from('students')
+          .select('*')
+          .order('reg_no', { ascending: true });
 
-      if (err2) throw err2;
-      setStudents(allStudents || []);
+        if (err2) throw err2;
+        rosterData = all || [];
+      }
+
+      // 2. Fetch active submissions to compute status dynamically
+      let submissionsQuery = supabase.from('submissions').select('reg_no, event_id, source, feedback_text');
+      if (isValidUuid) {
+        submissionsQuery = submissionsQuery.eq('event_id', eventId);
+      }
+      const { data: subs } = await submissionsQuery;
+
+      const activeSubmittedRegs = new Set(
+        (subs || [])
+          .filter((sub) => sub.source !== 'deleted' && sub.feedback_text !== '__DELETED__')
+          .map((sub) => sub.reg_no)
+      );
+
+      // 3. Map dynamic status
+      const mapped = rosterData.map((s) => ({
+        ...s,
+        status: (activeSubmittedRegs.has(s.reg_no) ? 'submitted' : 'pending') as 'pending' | 'submitted',
+      }));
+
+      setStudents(mapped);
     } catch (e: any) {
       console.error('[useStudents error]:', e);
       setError(e.message || 'Failed to load roster');
@@ -49,9 +70,13 @@ export function useStudents(eventId?: string) {
   useEffect(() => {
     fetchStudents();
 
+    // Listen to changes in both students AND submissions to keep UI in sync instantly
     const channel = supabase
       .channel(`students-status-${eventId || 'all'}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, () => {
+        fetchStudents();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, () => {
         fetchStudents();
       })
       .subscribe();
