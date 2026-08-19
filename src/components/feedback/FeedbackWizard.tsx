@@ -27,29 +27,31 @@ export function FeedbackWizard({ student, onSuccess }: FeedbackWizardProps) {
   const totalSteps = APPROVED_QUESTIONS.length;
 
   const handleRatingSelect = (questionId: string, rating: number) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: rating }));
-    // Auto advance
+    const updatedAnswers = { ...answers, [questionId]: rating };
+    setAnswers(updatedAnswers);
+    // On last step: submit directly; otherwise advance
     setTimeout(() => {
       if (currentStep < totalSteps - 1) {
         setSlideDirection('forward');
         setCurrentStep((s) => s + 1);
       } else {
-        setSlideDirection('forward');
-        setCurrentStep(totalSteps); // Jump to review screen
+        // Last question — submit immediately
+        handleSubmit(updatedAnswers);
       }
     }, 300);
   };
 
   const handleSelectOption = (questionId: string, option: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: option }));
-    // Auto advance
+    const updatedAnswers = { ...answers, [questionId]: option };
+    setAnswers(updatedAnswers);
+    // On last step: submit directly; otherwise advance
     setTimeout(() => {
       if (currentStep < totalSteps - 1) {
         setSlideDirection('forward');
         setCurrentStep((s) => s + 1);
       } else {
-        setSlideDirection('forward');
-        setCurrentStep(totalSteps); // Jump to review screen
+        // Last question — submit immediately
+        handleSubmit(updatedAnswers);
       }
     }, 300);
   };
@@ -64,8 +66,13 @@ export function FeedbackWizard({ student, onSuccess }: FeedbackWizardProps) {
       addToast('warning', 'Please answer this question before continuing.');
       return;
     }
-    setSlideDirection('forward');
-    setCurrentStep((s) => s + 1);
+    if (currentStep >= totalSteps - 1) {
+      // Last text question — submit directly
+      handleSubmit();
+    } else {
+      setSlideDirection('forward');
+      setCurrentStep((s) => s + 1);
+    }
   };
 
   const handleBack = () => {
@@ -78,10 +85,11 @@ export function FeedbackWizard({ student, onSuccess }: FeedbackWizardProps) {
     setCurrentStep(stepIndex);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (overrideAnswers?: Record<string, any>) => {
+    const answersToUse = overrideAnswers ?? answers;
     // Validate required questions
     for (const q of APPROVED_QUESTIONS) {
-      if (q.required && !answers[q.id]) {
+      if (q.required && !answersToUse[q.id]) {
         addToast('error', `Please complete the required question: "${q.label}"`);
         setCurrentStep(APPROVED_QUESTIONS.indexOf(q));
         return;
@@ -114,7 +122,7 @@ export function FeedbackWizard({ student, onSuccess }: FeedbackWizardProps) {
       // Compile answers
       const sanitizedAnswers: Record<string, any> = {};
       APPROVED_QUESTIONS.forEach((q) => {
-        const rawValue = answers[q.id] || '';
+        const rawValue = answersToUse[q.id] || '';
         sanitizedAnswers[q.id] = q.type === 'rating' ? Number(rawValue) : sanitizeFeedback(String(rawValue));
       });
 
@@ -249,9 +257,6 @@ export function FeedbackWizard({ student, onSuccess }: FeedbackWizardProps) {
             >
               {/* Question Label */}
               <div className="space-y-1">
-                <span className="text-xs font-extrabold text-indigo-400 uppercase tracking-widest">
-                  {isRequiredField ? 'Required Field' : 'Optional Field'}
-                </span>
                 <h3 className="text-lg sm:text-xl font-bold leading-snug text-white">
                   {q.label}
                 </h3>
@@ -345,17 +350,18 @@ export function FeedbackWizard({ student, onSuccess }: FeedbackWizardProps) {
               <span>Back</span>
             </button>
 
-            {/* Manual Advance indicator for text fields */}
+            {/* Manual Advance for text fields */}
             {(q.type === 'short_text' || q.type === 'textarea') && (
               <Button
                 type="button"
                 variant="primary"
                 size="sm"
                 onClick={handleNext}
-                disabled={isRequiredField && !currentAnswer}
-                icon={<ArrowRight className="w-3.5 h-3.5" />}
+                loading={submitting}
+                disabled={q.required && !currentAnswer}
+                icon={currentStep >= totalSteps - 1 ? <Send className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
               >
-                Next
+                {currentStep >= totalSteps - 1 ? 'Submit' : 'Next'}
               </Button>
             )}
           </div>
