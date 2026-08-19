@@ -132,9 +132,37 @@ on conflict (id) do update set public = true;
 
 drop policy if exists "Public Submissions Upload" on storage.objects;
 drop policy if exists "Public Submissions Select" on storage.objects;
+drop policy if exists "public_delete_submission" on submissions;
 
 create policy "Public Submissions Upload" on storage.objects
   for insert with check (bucket_id = 'submissions');
 
 create policy "Public Submissions Select" on storage.objects
   for select using (bucket_id = 'submissions');
+
+create policy "public_delete_submission" on submissions
+  for delete using (true);
+
+-- RPC Function to delete submission and reset student status
+create or replace function delete_student_submission(p_sub_id uuid, p_reg_no text, p_event_id text default null)
+returns json
+language plpgsql
+security definer
+as $$
+begin
+  delete from submissions where id = p_sub_id;
+
+  if p_event_id is not null and p_event_id != '' then
+    update students set status = 'pending', submitted_at = null
+    where reg_no = p_reg_no and event_id = p_event_id;
+  else
+    update students set status = 'pending', submitted_at = null
+    where reg_no = p_reg_no;
+  end if;
+
+  return json_build_object('ok', true);
+end;
+$$;
+
+grant execute on function delete_student_submission(uuid, text, text) to anon;
+grant execute on function delete_student_submission(uuid, text, text) to authenticated;

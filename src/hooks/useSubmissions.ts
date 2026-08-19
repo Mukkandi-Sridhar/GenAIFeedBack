@@ -48,27 +48,46 @@ export function useSubmissions(eventId?: string) {
   }, [eventId]);
 
   const deleteSubmission = useCallback(async (sub: Submission) => {
-    const { error: delErr } = await supabase
-      .from('submissions')
-      .delete()
-      .eq('id', sub.id);
+    console.log('[deleteSubmission] Deleting submission ID:', sub.id, 'for student:', sub.reg_no);
 
-    if (delErr) throw delErr;
+    // Try RPC first for security definer deletion
+    const { error: rpcErr } = await supabase.rpc('delete_student_submission', {
+      p_sub_id: sub.id,
+      p_reg_no: sub.reg_no,
+      p_event_id: sub.event_id || '',
+    });
 
-    // Reset student status to pending so they can resubmit
-    if (sub.event_id) {
-      await supabase
-        .from('students')
-        .update({ status: 'pending', submitted_at: null })
-        .eq('reg_no', sub.reg_no)
-        .eq('event_id', sub.event_id);
-    } else {
-      await supabase
+    if (rpcErr) {
+      console.warn('[deleteSubmission RPC note]:', rpcErr.message, '— falling back to direct query');
+
+      // Fallback: Direct Delete on submissions
+      const { error: delErr } = await supabase
+        .from('submissions')
+        .delete()
+        .eq('id', sub.id);
+
+      if (delErr) {
+        console.error('[deleteSubmission error]:', delErr);
+        throw new Error(delErr.message || 'Failed to delete submission from database');
+      }
+
+      // Reset student status to pending so they can resubmit
+      let updateQuery = supabase
         .from('students')
         .update({ status: 'pending', submitted_at: null })
         .eq('reg_no', sub.reg_no);
+
+      if (sub.event_id) {
+        updateQuery = updateQuery.eq('event_id', sub.event_id);
+      }
+
+      const { error: resetErr } = await updateQuery;
+      if (resetErr) {
+        console.warn('[deleteSubmission status reset note]:', resetErr.message);
+      }
     }
 
+    // Immediately remove from local state
     setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
   }, []);
 
