@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Search, X, Users, CheckCircle2 } from 'lucide-react';
+import { Search, X, Users, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { StudentCard } from './StudentCard';
 import { RosterSkeleton } from '@/components/ui/Skeleton';
 import { stagger } from '@/components/layout/PageTransition';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import type { Student } from '@/types';
 
 interface RosterGridProps {
@@ -15,6 +17,7 @@ interface RosterGridProps {
 
 export function RosterGrid({ students, loading, error }: RosterGridProps) {
   const [query, setQuery] = useState('');
+  const [confirmStudent, setConfirmStudent] = useState<Student | null>(null);
   const navigate = useNavigate();
 
   // Filter out submitted students — only show pending students in the roster
@@ -32,6 +35,18 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
 
   const submittedCount = students.filter((s) => s.status === 'submitted').length;
   const pendingCount = pendingStudents.length;
+
+  const handleSelectStudent = (student: Student) => {
+    setConfirmStudent(student);
+  };
+
+  const handleProceed = () => {
+    if (confirmStudent) {
+      const reg = confirmStudent.reg_no;
+      setConfirmStudent(null);
+      navigate(`/feedback/${encodeURIComponent(reg)}`);
+    }
+  };
 
   if (error) {
     return (
@@ -98,7 +113,7 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
           </div>
           <h3 className="text-xl font-black text-white">All Submissions Complete! 🎉</h3>
           <p className="text-sm font-medium text-zinc-400 max-w-md mx-auto">
-            Every registered student in this session has submitted their conference feedback.
+            Every registered student in this session has submitted their feedback.
           </p>
         </div>
       ) : filtered.length === 0 ? (
@@ -117,7 +132,7 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
             <StudentCard
               key={student.reg_no}
               student={student}
-              onClick={() => navigate(`/feedback/${encodeURIComponent(student.reg_no)}`)}
+              onClick={() => handleSelectStudent(student)}
             />
           ))}
         </motion.div>
@@ -128,6 +143,54 @@ export function RosterGrid({ students, loading, error }: RosterGridProps) {
           Showing {filtered.length} of {pendingStudents.length} pending students
         </p>
       )}
+
+      {/* Anonymity Confirmation Modal */}
+      <Modal
+        open={confirmStudent !== null}
+        onClose={() => setConfirmStudent(null)}
+        title="🔒 Anonymity Confirmation"
+        size="md"
+      >
+        {confirmStudent && (
+          <div className="space-y-6 text-center py-2">
+            <div className="w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-extrabold text-zinc-400 uppercase tracking-widest">
+                Selected Identity
+              </p>
+              <h3 className="text-base font-black text-white leading-snug">
+                {confirmStudent.name} <span className="font-mono text-indigo-300 font-bold block sm:inline sm:ml-1">({confirmStudent.reg_no})</span>
+              </h3>
+            </div>
+
+            <blockquote className="text-xs text-zinc-400 font-bold bg-white/[0.01] p-4 rounded-xl border border-white/5 leading-relaxed text-left">
+              Registration numbers are used <em className="text-indigo-300 not-italic font-bold">only</em> to track overall completion status and prevent duplicate attempts. Individual registration numbers and names are <strong className="text-white">never</strong> attached to your feedback responses in reports.
+            </blockquote>
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmStudent(null)}
+                className="flex-1 py-3"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleProceed}
+                className="flex-1 py-3"
+              >
+                Yes, Proceed
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
