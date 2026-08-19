@@ -5,18 +5,18 @@ type BadgeType = 'pending' | 'submitted' | 'admin_added';
 const config: Record<BadgeType, { label: string; cls: string; icon: React.ReactNode }> = {
   pending: {
     label: 'PENDING',
-    cls: 'bg-slate-100 text-slate-700 border border-slate-300',
-    icon: <Clock className="w-3 h-3 text-slate-500" />,
+    cls: 'bg-zinc-800 text-zinc-300 border border-zinc-700',
+    icon: <Clock className="w-3 h-3 text-zinc-400" />,
   },
   submitted: {
     label: 'SUBMITTED',
-    cls: 'bg-slate-950 text-white border border-slate-800 shadow-sm',
+    cls: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
     icon: <CheckCircle2 className="w-3 h-3 text-emerald-400" />,
   },
   admin_added: {
     label: 'ADMIN',
-    cls: 'bg-slate-800 text-white border border-slate-700',
-    icon: <Shield className="w-3 h-3 text-slate-300" />,
+    cls: 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20',
+    icon: <Shield className="w-3 h-3 text-indigo-400" />,
   },
 };
 

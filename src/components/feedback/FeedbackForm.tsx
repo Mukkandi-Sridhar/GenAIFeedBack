@@ -94,14 +94,14 @@ export function FeedbackForm({ student }: FeedbackFormProps) {
         animate={{ opacity: 1, scale: 1 }}
         className="glass-card p-10 text-center space-y-4"
       >
-        <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+        <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto">
           <CheckCircle className="w-10 h-10" />
         </div>
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white">Thank You!</h2>
-        <p className="text-sm font-medium text-slate-600 dark:text-zinc-300 max-w-md mx-auto">
-          Your feedback for registration number <strong className="text-slate-900 dark:text-white font-bold">{student.reg_no}</strong> has been recorded.
+        <h2 className="text-2xl font-black text-white">Thank You!</h2>
+        <p className="text-sm font-medium text-zinc-300 max-w-md mx-auto">
+          Your feedback for registration number <strong className="text-white font-bold">{student.reg_no}</strong> has been recorded.
         </p>
-        <p className="text-xs text-slate-500">Redirecting to roster in 2 seconds…</p>
+        <p className="text-xs text-zinc-500">Redirecting to roster in 2 seconds…</p>
       </motion.div>
     );
   }
@@ -110,8 +110,8 @@ export function FeedbackForm({ student }: FeedbackFormProps) {
     <form onSubmit={handleSubmit} className="glass-card p-6 sm:p-8 space-y-6">
       {/* Student Reg No (Read-only) */}
       <motion.div variants={stagger.item} className="space-y-1.5">
-        <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-          <Hash className="w-3.5 h-3.5" />
+        <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+          <Hash className="w-3.5 h-3.5 text-indigo-400" />
           Registration Number
         </label>
         <input
@@ -119,14 +119,14 @@ export function FeedbackForm({ student }: FeedbackFormProps) {
           value={student.reg_no}
           disabled
           readOnly
-          className="w-full bg-slate-100 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 cursor-not-allowed select-none"
+          className="w-full bg-zinc-800/90 border border-zinc-700 rounded-xl px-4 py-3 text-sm font-mono font-bold text-white cursor-not-allowed select-none"
         />
       </motion.div>
 
       {/* Student Name */}
       <motion.div variants={stagger.item} className="space-y-1.5">
-        <label htmlFor="student-name" className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-          <User className="w-3.5 h-3.5" />
+        <label htmlFor="student-name" className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+          <User className="w-3.5 h-3.5 text-indigo-400" />
           Student Name
         </label>
         <input
@@ -136,16 +136,16 @@ export function FeedbackForm({ student }: FeedbackFormProps) {
           onChange={(e) => setName(e.target.value)}
           placeholder="Enter your name"
           maxLength={100}
-          className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-300 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-semibold text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-slate-800 dark:focus:border-zinc-400 transition-all"
+          className="w-full bg-zinc-900/90 border border-zinc-700 rounded-xl px-4 py-3 text-sm font-semibold text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all"
         />
       </motion.div>
 
       {/* Feedback */}
       <motion.div variants={stagger.item} className="space-y-1.5">
-        <label htmlFor="feedback-text" className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-          <MessageSquare className="w-3.5 h-3.5" />
+        <label htmlFor="feedback-text" className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+          <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
           Conference Feedback
-          <span className="text-red-500">*</span>
+          <span className="text-red-400">*</span>
         </label>
         <textarea
           id="feedback-text"
@@ -154,15 +154,15 @@ export function FeedbackForm({ student }: FeedbackFormProps) {
           placeholder="Share your thoughts on the session — key takeaways, speaker insights, topics you explored and notes you, overall experience…"
           rows={7}
           required
-          className="w-full bg-slate-50 dark:bg-zinc-800/80 border border-slate-300 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-slate-800 dark:focus:border-zinc-400 transition-all min-h-[120px]"
+          className="w-full bg-zinc-900/90 border border-zinc-700 rounded-xl px-4 py-3 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-all min-h-[120px]"
           aria-required="true"
         />
-        <p className="text-[11px] font-bold text-slate-500 text-right">{feedback.length} / 5000</p>
+        <p className="text-[11px] font-bold text-zinc-500 text-right">{feedback.length} / 5000</p>
       </motion.div>
 
       {/* File Upload */}
       <motion.div variants={stagger.item} className="space-y-1.5">
-        <label className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+        <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
           Attachments
         </label>
         <FileUpload files={files} onChange={setFiles} error={fileError} />
